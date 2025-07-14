@@ -19,3 +19,28 @@ Features
 --------
 
 * TODO
+
+Installation
+------------
+
+To install the `pseudo_xrr` package, follow these steps:
+
+1. Clone the repository:
+
+.. code-block:: bash
+
+    git clone https://github.com/AlexP226/pseudo_xrr.git
+    cd pseudo_xrr
+
+2. Create a conda environment:
+
+.. code-block:: bash
+
+    conda create -n pseudo_xrr_env python=3.10
+    conda activate pseudo_xrr_env
+
+3. Install the package in editable mode:
+
+.. code-block:: bash
+
+    pip install -e .
