@@ -200,3 +200,67 @@ def load_data(yaml_path: str):
 
 # Example usage:
 # importGIXOSdata, importbkg = load_data("metadata.yaml")
+
+
+
+def load_GIXOS_data(path, qxy0, scan):
+    # put clear and close all commands up here
+    import numpy as np
+    sample = "instrument"
+    bkgsample = 'instrument'
+    bkgscan = scan+1
+
+    importGIXOSdata = None
+    importbkg = None
+
+    for idx in range(len(qxy0)):
+        fileprefix = f"{sample}-id{int(scan[idx])}"        # sample + "-id" + int(scan[idx],'%d')  # fix later
+        GIXOSfilename = path + fileprefix + ".txt"
+        importGIXOSdata_qxy0 = np.loadtxt(GIXOSfilename, skiprows = 16)
+        #importGIXOSdata_qxy0 = importGIXOSdata_qxy0.to_numpy() 
+        if importGIXOSdata is None:
+            importGIXOSdata = {
+            "Intensity": np.zeros((importGIXOSdata_qxy0.shape[0], len(qxy0))),
+            "tt_qxy0": np.zeros((importGIXOSdata_qxy0.shape[0], len(qxy0))),
+            "error": np.zeros((importGIXOSdata_qxy0.shape[0], len(qxy0))),
+            "tt": np.zeros((importGIXOSdata_qxy0.shape[0], len(qxy0))),
+        }  
+
+        # Compute element-wise mean
+        mean_row = np.mean(importGIXOSdata_qxy0[[268, 270], :], axis=0)
+
+        # Assign the mean to row 269
+        importGIXOSdata_qxy0[269, :] = mean_row   # .data is the name of the column, so need to convert that to Python list access
+
+        importGIXOSdata ["Intensity"][:, idx] = importGIXOSdata_qxy0[:,2]
+        importGIXOSdata ["tt_qxy0"][:,idx] = importGIXOSdata_qxy0 [:,1] - 0.01
+        importGIXOSdata ["error"][:,idx] = np.sqrt(importGIXOSdata_qxy0 [:,2]) # might run into errors bc math only works for scalars & not arrays   
+
+        #file name of the bkg GISAXS to be imported
+        bkgfileprefix = f"{bkgsample}-id{int(bkgscan[idx])}"
+        bkgGIXOSfilename = path + bkgfileprefix + ".txt"
+        importbkg_qxy0 = np.loadtxt(bkgGIXOSfilename, skiprows = 16)
+        #importbkg_qxy0 = importbkg_qxy0.to_numpy()    # ~~~~~~~~~~~~~~~~~~~ Use to import using pandas with:   importbkg_qxy0 = pd.read_csv(filename, delimiter=' ', skiprows=16)    but did not read well; would skip a line at first can likely rewrite with pandas if needed
+        if importbkg is None:
+            importbkg = {
+                "Intensity": np.zeros((importbkg_qxy0.shape[0], len(qxy0) )),
+                "tt_qxy0": np.zeros((importbkg_qxy0.shape[0], len(qxy0))),
+                "error": np.zeros((importbkg_qxy0.shape[0], len(qxy0))),
+                "tt": np.zeros((importbkg_qxy0.shape[0], len(qxy0))),
+            }
+
+        importbkg_qxy0 [269,:] = np.mean(importbkg_qxy0 [[268,270],:], axis=0); # bad pixel
+        importbkg ["Intensity"][:,idx] = importbkg_qxy0 [:,2]
+        importbkg ["tt_qxy0"][:,idx] = importGIXOSdata_qxy0 [:,1]     # why not use importbkg_qxy0[:,1] ?
+        importbkg ["error"][:,idx] = np.sqrt(importbkg_qxy0 [:,2])
+
+        if (scan[idx]>=29646 and scan[idx]<=29682):
+            importGIXOSdata ["Intensity"][:,idx] = importGIXOSdata ["Intensity"][:,idx]*2
+            importGIXOSdata ["error"][:,idx] = np.sqrt(importGIXOSdata ["Intensity"][:,idx])
+            importbkg ["Intensity"][:,idx] = importbkg ["Intensity"][:,idx]*2
+            importbkg ["error"][:,idx] = np.sqrt(importbkg ["Intensity"][:,idx])
+        print(f"{qxy0[idx]:f}", end='\t')     #      fprintf('%f/t', qxy0[idx])        # what i had initially was:   print('/t'.join(f"{qxy0[idx]:f}"))
+        
+    importGIXOSdata ["tt"] = np.mean(importGIXOSdata ["tt_qxy0"], axis = 1)
+    importbkg ["tt"] = np.mean(importbkg ["tt_qxy0"], axis = 1)
+    return importGIXOSdata, importbkg
