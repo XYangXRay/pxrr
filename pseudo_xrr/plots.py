@@ -63,8 +63,8 @@ def R_data_plot(GIXOS, metadata, xrr_config): # want to have xrr_config be a dic
         fmt='o',
         markersize=5,
         label=(
-            f"slit: {xrr_config["slit_v"]:.2f} mm (v) x {xrr_config["slit_h"]:.2f} mm (h); "
-            f"{xrr_config["sdd"]:.1f} mm, {xrr_config["energy"] / 1000:.1f} keV"
+            f"slit: {xrr_config['slit_v']:.2f} mm (v) x {xrr_config['slit_h']:.2f} mm (h); "
+            f"{xrr_config['sdd']:.1f} mm, {xrr_config['energy'] / 1000:.1f} keV"
         )
     )
 
@@ -109,8 +109,8 @@ def R_pseudo_data_plot(GIXOS, metadata, xrr_config):
         markersize=5,
         linewidth=1.5,
         label=(
-            f"slit: {xrr_config["slit_v"]:.2f} mm (v) x {xrr_config["slit_h"]:.2f} mm (h); "
-            f"{xrr_config["sdd"]:.1f} mm, {xrr_config["energy"] / 1000:.1f} keV"
+            f"slit: {xrr_config['slit_v']:.2f} mm (v) x {xrr_config['slit_h']:.2f} mm (h); "
+            f"{xrr_config['sdd']:.1f} mm, {xrr_config['energy'] / 1000:.1f} keV"
         )
     )
 
