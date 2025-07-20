@@ -585,7 +585,7 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
 
-from plots import GIXOS_data_plot, R_data_plot
+from pseudo_xrr.plots import GIXOS_data_plot, R_data_plot
 def rectangular_slit():
     importGIXOSdata, importbkg = load_data('./testing_data/gixos_metadata.yaml')
     metadata = load_metadata('./testing_data/gixos_metadata.yaml')
