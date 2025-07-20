@@ -270,15 +270,15 @@ def GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step, wide_ang
         "GIXOS_bkg": importbkg["Intensity"] [:, metadata["qxy0_select_idx"]]
     }
     DSbetaHW = np.mean(GIXOS["tt"][1:] - GIXOS["tt"][0:-1]) / 2    # for later use in upcoming functions
-    qxy0_idx = np.where(metadata["qx0"] > qxy_bkg)
+    qxy0_idx = np.where(metadata["qxy0"] > qxy_bkg)
     qxy0_idx = qxy0_idx[0]
     if len(qxy0_idx) == 0:
-        qxy0_idx = [len(metadata["qx0"]) + 1]
+        qxy0_idx = [len(metadata["qxy0"]) + 1]
     GIXOS["Qxy"] = 2 * np.pi / metadata["wavelength"] * np.sqrt((np.cos(np.radians(GIXOS["tt"])) * np.sin(np.radians(metadata["tth"])))**2 + (np.cos(np.radians(metadata["alpha_i"])) - np.cos(np.radians(GIXOS["tt"])) * np.cos(np.radians(metadata["tth"])))**2)
     GIXOS["Qz"] = 2 * np.pi / metadata["wavelength"] * (np.sin(np.radians(GIXOS["tt"])) + np.sin(np.radians(metadata["alpha_i"])))
     GIXOS["GIXOS_raw"] = importGIXOSdata["Intensity"] [:, metadata["qxy0_select_idx"]]
     GIXOS["GIXOS_bkg"] = importbkg["Intensity"] [:, metadata["qxy0_select_idx"]]
-    if qxy0_idx[0] <= len(metadata["qx0"]):
+    if qxy0_idx[0] <= len(metadata["qxy0"]):
         GIXOS["raw_largetth"] = np.mean(importGIXOSdata["Intensity"][:, int(qxy0_idx):], axis = 1)
         GIXOS["bkg_largetth"] = np.mean(importbkg["Intensity"][:, int(qxy0_idx):], axis = 1)
         bulkbkg = GIXOS["raw_largetth"] - GIXOS["bkg_largetth"]
@@ -479,7 +479,7 @@ def conversion_to_reflectivity(GIXOS, xrr_config):
 
 
 def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
-    xrrfilename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON.dat" # becomes "instrument_46392_R_PYTHON.dat" - qz and dqz columns are very accurate, but R and dR start off semi-accurate but increasingly deviate after ~15th value
+    xrrfilename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON_TEST.dat" # becomes "instrument_46392_R_PYTHON.dat" - qz and dqz columns are very accurate, but R and dR start off semi-accurate but increasingly deviate after ~15th value
     with open(xrrfilename, 'w') as f:
         f.write(f"# files\n")
         f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
@@ -515,7 +515,7 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
     # ---- FILE 2: DS/(R/RF) ----
-    ds2rrf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_DS2RRF_PYTHON.dat" # becomes "instrument_46392_DS2RRF_PYTHON.dat" - first column, less than 0.1% error ; if we approx at the same decimal point that MATLAB appears to round off at, would be the same values - second column: starts semi close (less than 0.1% error), but deviates heavily by the end (~x2.5 the actual value it is supposed to have)
+    ds2rrf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_DS2RRF_PYTHON_TEST.dat" # becomes "instrument_46392_DS2RRF_PYTHON.dat" - first column, less than 0.1% error ; if we approx at the same decimal point that MATLAB appears to round off at, would be the same values - second column: starts semi close (less than 0.1% error), but deviates heavily by the end (~x2.5 the actual value it is supposed to have)
     with open(ds2rrf_filename, 'w') as f:
         f.write(f"# files\n")
         f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
@@ -551,7 +551,7 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
     # ---- FILE 3: Structure Factor ----
-    sf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_SF_PYTHON.dat" # becomes "instrument_46392_SF_PYTHON.dat" - first four columns are largely accurate; last 2 columns deviate (first is off by ~8%, second is off by a larger margin but both start semi-close and then increasingly deviate as index increases)
+    sf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_SF_PYTHON_TEST.dat" # becomes "instrument_46392_SF_PYTHON.dat" - first four columns are largely accurate; last 2 columns deviate (first is off by ~8%, second is off by a larger margin but both start semi-close and then increasingly deviate as index increases)
     with open(sf_filename, 'w') as f:
         f.write(f"# pure structure factor and kapa/cw roughness with its decay term under given XRR resolution\n")
         f.write(f"# files\nsample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
