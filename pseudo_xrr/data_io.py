@@ -57,10 +57,10 @@ def load_metadata(yaml_path: str):
     # Physical constants
     kb                     = meta["physical_constants"]["kb"]
     tension                = meta["physical_constants"]["tension"]
-    kappa                  = meta["physical_constants"]["kappa"]
     temperature            = meta["physical_constants"]["temperature"]
 
     # Derived physics quantities
+    kappa                  = meta["derived"]["kappa"]
     Lk                     = math.sqrt(kappa * kb * temperature / tension) * 1e10
     amin                   = meta["derived"]["amin"]
     qmax                   = math.pi / amin

@@ -14,3 +14,4 @@ def Rectangular_Slit():
     GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step)
     R_data_plot(GIXOS, metadata, xrr_config)
     return
+  
