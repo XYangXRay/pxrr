@@ -258,7 +258,7 @@ def remove_negative_2theta(importGIXOSdata, importbkg):
 def real_space_2theta(metadata):
     metadata["tth"] = np.degrees(np.arcsin(metadata["qxy0"][ metadata["qxy0_select_idx"] ] * metadata["wavelength"] / 4 / np.pi)) * 2          # math.asin would work if not a list
     metadata["tth_roiHW_real"] = np.degrees(metadata["pixel"] * metadata["DSpxHW"] / metadata["Ddet"])
-    metadata["DSqxyHW_real "]= np.radians(metadata["tth_roiHW_real"]) / 2 * 4 * np.pi / metadata["wavelength"] * np.cos(np.radians(metadata["tth"]/2))
+    metadata["DSqxyHW_real"]= np.radians(metadata["tth_roiHW_real"]) / 2 * 4 * np.pi / metadata["wavelength"] * np.cos(np.radians(metadata["tth"]/2))
     return metadata    # we add tth, tth_roiHW_real, and DSqxyHW_real to the metadata dict so we can use it later in the plotting function
 
 # will have here for now, but might need to break up into computation and plotting functions & will need to rewrite parts to make more simple inputs
