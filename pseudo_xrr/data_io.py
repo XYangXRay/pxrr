@@ -283,7 +283,7 @@ def GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step, wide_ang
         GIXOS["bkg_largetth"] = np.mean(importbkg["Intensity"][:, int(qxy0_idx):], axis = 1)
         bulkbkg = GIXOS["raw_largetth"] - GIXOS["bkg_largetth"]
     else:
-        bulkbkg = np.zeros(len(metadata["qx0"]))
+        bulkbkg = np.zeros(len(metadata["qxy0"]))
 
     fdtt = np.radians(tt_step) / (np.arctan((np.tan(np.radians(GIXOS ["tt"]))*metadata["Ddet"] + metadata["pixel"]/2)/metadata["Ddet"]) - np.arctan((np.tan(np.radians(GIXOS ["tt"]))*metadata["Ddet"] - metadata["pixel"] / 2) / metadata["Ddet"]))
     fdtt = fdtt / fdtt [0]
