@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import math
 import os
-from gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
+from pseudo_xrr.gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
 from scipy.integrate import dblquad
 
 def load_metadata(yaml_path: str):
