@@ -33,7 +33,7 @@ def GIXOS_data_plot(GIXOS, metadata):
     plt.legend(loc='upper right', frameon=False)  # 'NorthEast' => 'upper right'
 
     # --- Save figure
-    filename = f"{metadata["sample"]}_{metadata["qxy0_select_idx"]:05d}_GIXOS.jpg"
+    filename = f"{metadata['sample']}_{metadata['qxy0_select_idx']:05d}_GIXOS.jpg"
     save_path = os.path.join(metadata["path_out"], filename)
     plt.savefig(save_path, dpi=300)
     plt.show()
@@ -80,7 +80,7 @@ def R_data_plot(GIXOS, metadata, xrr_config): # want to have xrr_config be a dic
     plt.tight_layout()
 
     # Save figure
-    filename = f"{metadata["path_out"]}{metadata["sample"]}_{metadata["scan"][ metadata["qxy0_select_idx"] ]:05d}_R_PYTHON.jpg"
+    filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON.jpg"
     plt.savefig(filename, dpi=300)
     plt.show()
 
@@ -138,6 +138,6 @@ def R_pseudo_data_plot(GIXOS, metadata, xrr_config):
 
     plt.tight_layout()
 
-    filename = f"{metadata["path_out"]}{metadata["sample"]}_{metadata["scan"][ metadata["qxy0_select_idx"] ]:05d}_RRF_PYTHON.jpg"
+    filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_RRF_PYTHON.jpg"
     plt.savefig(filename, dpi=300)
     plt.show()
