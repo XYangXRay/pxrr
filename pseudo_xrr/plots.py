@@ -1,5 +1,5 @@
 # from data_io import load_metadata, etc., etc. maybe
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import os
 import numpy as np
 
