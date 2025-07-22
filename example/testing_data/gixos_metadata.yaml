@@ -45,11 +45,8 @@ I0ratio_sample2bkg: 1.0
 physical_constants:
   kb:          1.381e-23   # J/K
   tension:     0.050       # N/m
-  kappa:       20
   temperature: 293        # K
 
 derived:
- 
+  kappa: 3
   amin: 5
-
-
