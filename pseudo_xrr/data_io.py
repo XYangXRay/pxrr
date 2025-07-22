@@ -5,6 +5,8 @@ import math
 import os
 from pseudo_xrr.gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
 from scipy.integrate import dblquad
+from scipy.special import kv as besselk, jv as besselj, gamma
+
 
 def load_metadata(yaml_path: str):
     """
@@ -77,6 +79,13 @@ def load_metadata(yaml_path: str):
         * 4
     )
 
+    # Dependency specific parameters
+    DSqxyHW                = 2 * DSresHW
+    qz_selected            = np.array(meta["dependency"]["qz_selected"])
+    kappa_deviation        = meta["dependency"]["kappa_deviation"]
+    assume_kappa           = np.array([kappa - kappa_deviation, kappa + kappa_deviation])
+    rho_b                  = meta["dependency"]["rho_b"]
+
     # Return all variables in a dictionary
     return {
         "colorset": colorset,
@@ -111,7 +120,12 @@ def load_metadata(yaml_path: str):
         "Lk": Lk,
         "amin": amin,
         "qmax": qmax,
-        "RFscaling": RFscaling
+        "RFscaling": RFscaling,
+        "DSqxyHW": DSqxyHW,
+        "qz_selected": qz_selected,
+        "kappa_deviation": kappa_deviation,
+        "assume_kappa": assume_kappa,
+        "rho_b": rho_b
     }
     
 
@@ -174,7 +188,7 @@ def load_data(yaml_path: str):
         if importbkg is None:
             nrows_bkg = importbkg_qxy0.shape[0]
             importbkg = {
-                "Intensity": np.zeros((nrows_bkg, ncols)),
+                "Intensity": np.zeros((nrows_bkg, ncols)),  # should ncols be defined in here since if importGIXOSdata has values then it will not be defined in this if statment?
                 "tt_qxy0":   np.zeros((nrows_bkg, ncols)),
                 "error":     np.zeros((nrows_bkg, ncols)),
                 "tt":        None
@@ -294,7 +308,7 @@ def GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step, wide_ang
         GIXOS["GIXOS"] = (GIXOS ["GIXOS_raw"] - GIXOS ["GIXOS_bkg"]) * fdtt - bulkbkg * fdtt
         GIXOS["error"] = np.sqrt(importGIXOSdata["error"][:, metadata["qxy0_select_idx"]]**2 + importbkg["error"][:, metadata["qxy0_select_idx"]]**2) * fdtt
     else:
-        GIXOS["GIXOS"]= (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]  ) * fdtt - np.mean(bulkbkg[-1-10:-1],1) * fdtt 
+        GIXOS["GIXOS"] = (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]  ) * fdtt - np.mean(bulkbkg[-1-10:-1],1) * fdtt 
         GIXOS["GIXOS"] = GIXOS["GIXOS"] - np.mean(GIXOS["GIXOS"][-1-5:-1]) * 0.5     # GIXOS ["error"] does not exist if we use this, so it will result in errors later; maybe ask Chen?
     
     return GIXOS, DSbetaHW
@@ -331,10 +345,10 @@ def GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW):
 def rect_slit_function(GIXOS, metadata):
     xrr_data = pd.read_csv(metadata["path_xrr"] + metadata["xrr_datafile"], delim_whitespace=True)
     xrr_config = {
-        "energy" : 14400,
-        "sdd" : 1039.9,
-        "slit_h" : 1,
-        "slit_v" : 0.66, 
+        'energy' : 14400,
+        'sdd' : 1039.9,
+        'slit_h' : 1,
+        'slit_v' : 0.66, 
     }
 
     xrr_config["wavelength"] = 12400/xrr_config["energy"]
@@ -358,7 +372,7 @@ def rect_slit_function(GIXOS, metadata):
     xrr_config["slit_l"] = np.column_stack((np.ones(len(xrr_config["slit_v_coord"])) * -xrr_config["slit_h"] / 2, xrr_config["slit_v_coord"]))
     xrr_config["slit_r"] = np.column_stack((np.ones(len(xrr_config["slit_v_coord"])) * xrr_config["slit_h"] / 2, xrr_config["slit_v_coord"]))
     xrr_config["slit_coord"] = np.concatenate((xrr_config["slit_t"], xrr_config["slit_r"], np.flipud(xrr_config["slit_b"]), np.flipud(xrr_config["slit_l"])), axis = 0)
-    xrr_config["qxy_slit"] = np.zeros( (xrr_config["slit_coord.shape"][0], 2, xrr_config["beta_xrr"].shape[0]) )
+    xrr_config["qxy_slit"] = np.zeros( (xrr_config["slit_coord"].shape[0], 2, xrr_config["beta_xrr"].shape[0]) )
     xrr_config["qxy_slit_min"] = np.zeros( (xrr_config["beta_xrr"].shape[0], 1) )
     xrr_config["ang"] = np.arange(0, 2 * np.pi, 0.01)
     #xrr_config_ang = xrr_config_ang.reshape(-1, 1)  # transposing to make it a column vector
@@ -414,36 +428,49 @@ def rect_slit_function(GIXOS, metadata):
     xrr_config["diff_r"] = xrr_config["diff_r"].flatten()
     xrr_config["diff_r_bkgoff"] = xrr_config["diff_r_bkgoff"].flatten()
 
+
+    angle_factor = (np.pi / 180) ** 2 * (9.42e-6) ** 2 # taking it outside of the loop decreases computation time
     for idx in range(len(xrr_config["beta_xrr"])):
+        beta = xrr_config["beta_xrr"][idx]
+        sin_beta = np.sin(np.radians(beta))
         fun_film = lambda tt, tth: film_integral_delta_beta_delta_phi(tt, tth, xrr_config["kbT_gamma"], xrr_config["wave_number"], xrr_config["beta_xrr"][idx], metadata["Lk"], metadata["amin"])
         for phi_idx in range(xrr_config["delta_beta_array_for_qxy_slit_min"].shape[1]):
             upper, _ = dblquad(lambda tth, tt: fun_film(tt, tth), (xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx]), (xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx]), lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx], lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],  epsabs=1e-12, epsrel=1e-10)
-            xrr_config["region_around_radial_u_r"][idx, phi_idx] = upper * (np.pi/180) ** 2 * (9.42e-6)**2 / np.sin(np.radians(xrr_config["beta_xrr"][idx]))
+            xrr_config["region_around_radial_u_r"][idx, phi_idx] = upper * angle_factor / sin_beta
 
             lower, _ = dblquad(lambda tth, tt: fun_film (tt, tth), (xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx]), (xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx]), lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx], lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],  epsabs=1e-12, epsrel=1e-10)
-            xrr_config["region_around_radial_l_r"][idx, phi_idx] = lower * (np.pi/180)**2 * (9.42e-6)**2 / np.sin(np.radians(xrr_config["beta_xrr"][idx]))
+            xrr_config["region_around_radial_l_r"][idx, phi_idx] = lower * angle_factor / sin_beta
 
         # Run the integral
-        result, _ = dblquad(
-        func=fun_film,
-        a = xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        b = xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
-        gfun=lambda beta: xrr_config["phi_max_qxy_slit_min"][idx],
-        hfun=lambda beta: xrr_config["delta_phi_HW"][idx] + xrr_config["delta_phi_HW"][idx],  epsabs=1e-12, epsrel=1e-10
+        result, _ = dblquad(func=fun_film,
+        a= xrr_config["phi_max_qxy_slit_min"][idx],
+        b= xrr_config["delta_phi_HW"][idx],                
+        gfun = xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+        hfun = xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
+        epsabs=1e-8, epsrel=1e-6
         )
+        #result, _ = dblquad(
+        #func=fun_film,
+        #a = xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+        #b = xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
+        #gfun=lambda beta: xrr_config["phi_max_qxy_slit_min"][idx],
+        #hfun=lambda beta: xrr_config["delta_phi_HW"][idx] + xrr_config["delta_phi_HW"][idx],  epsabs=1e-12, epsrel=1e-10
+        #)
+
 
     # Store the result (second column, index 0 in Python)
-        xrr_config["diff_r"][idx] = (result * (np.pi / 180)**2 * (9.42e-6)**2 / np.sin(np.radians(xrr_config["beta_xrr"][idx])))
+        xrr_config["diff_r"][idx] = (result * angle_factor / sin_beta)
             
         result2, _ = dblquad(func=fun_film,
-        a=xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        b=xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
-        gfun=lambda beta: xrr_config["bkg_phi"][idx] - xrr_config["delta_phi_HW"][idx],
-        hfun=lambda beta: xrr_config["bkg_phi"][idx] + xrr_config["delta_phi_HW"][idx],  epsabs=1e-12, epsrel=1e-10
+        a=xrr_config["bkg_phi"][idx] - xrr_config["delta_phi_HW"][idx],
+        b=xrr_config["bkg_phi"][idx] + xrr_config["delta_phi_HW"][idx],
+        gfun=xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+        hfun=xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],    
+        epsabs=1e-8, epsrel=1e-6
+        #gfun=lambda beta: xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+        #hfun=lambda beta: xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],  epsabs=1e-12, epsrel=1e-10
         )
-        xrr_config["diff_r_bkgoff"][idx] = (result2 * (np.pi / 180)**2 * (9.42e-6)**2 / np.sin(np.radians(xrr_config["beta_xrr"][idx])))
-
-
+        xrr_config["diff_r_bkgoff"][idx] = (result2 * angle_factor / sin_beta)
 
     xrr_config["Rterm_rect_slit"] = xrr_config["specular_qxy_min"] + 2*(np.sum(xrr_config["region_around_radial_u_r"] + xrr_config["region_around_radial_u_r"], axis = 1) + xrr_config["diff_r"])
     xrr_config["bkgterm_rect_slit"] = xrr_config["diff_r_bkgoff"]
@@ -479,6 +506,8 @@ def conversion_to_reflectivity(GIXOS, xrr_config):
 
 
 def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
+    print(xrr_config)
+    print(xrr_config["slit_v"])
     xrrfilename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON_TEST.dat" # becomes "instrument_46392_R_PYTHON.dat" - qz and dqz columns are very accurate, but R and dR start off semi-accurate but increasingly deviate after ~15th value
     with open(xrrfilename, 'w') as f:
         f.write(f"# files\n")
@@ -585,8 +614,8 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
 
-from pseudo_xrr.plots import GIXOS_data_plot, R_data_plot
-def rectangular_slit():
+from pseudo_xrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
+def rectangular_slit():     # can make this a main function to run the whole code and have a parameter be the text file
     importGIXOSdata, importbkg = load_data('./testing_data/gixos_metadata.yaml')
     metadata = load_metadata('./testing_data/gixos_metadata.yaml')
     importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
@@ -596,6 +625,110 @@ def rectangular_slit():
     GIXOS_data_plot(GIXOS, metadata)
     GIXOS = GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW)
     xrr_config = rect_slit_function(GIXOS, metadata)
-    xrr_config = conversion_to_reflectivity(GIXOS, xrr_config)
+    GIXOS = conversion_to_reflectivity(GIXOS, xrr_config)
+    print("xrr_config keys:", xrr_config.keys())
+
     GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step)
     R_data_plot(GIXOS, metadata, xrr_config)
+    R_pseudo_data_plot(GIXOS, metadata, xrr_config)
+
+
+
+
+# created a real_space conversion one for dependency b/c slight difference in handling qxy0 that messes up everything else - can also make a True/False statement to have fewer functions
+def dependency_real_space_2theta(metadata):
+    metadata["tth"] = np.degrees(np.arcsin(metadata["qxy0"] * metadata["wavelength"] / 4 / np.pi)) * 2          # math.asin would work if not a list
+    metadata["tth_roiHW_real"] = np.degrees(metadata["pixel"] * metadata["DSpxHW"] / metadata["Ddet"])
+    metadata["DSqxyHW_real"] = np.radians(metadata["tth_roiHW_real"]) / 2 * 4 * np.pi / metadata["wavelength"] * np.cos(np.radians(metadata["tth"]/2))
+    return metadata
+
+
+def Qxy_GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step):
+    GIXOS = {
+        "tt": importGIXOSdata["tt"],
+    }
+    DSbetaHW = np.mean(GIXOS["tt"][1:] - GIXOS["tt"][0:-1]) / 2
+    qxy0_idx_arr = np.where(metadata["qxy0"] > metadata["qxy_bkg"])
+    if len(qxy0_idx_arr) == 0:
+        qxy0_idx = len(metadata["qxy0"]) + 1
+    else:
+        qxy0_idx = int(qxy0_idx_arr[0])
+
+    GIXOS["Qxy"] = np.zeros((len(GIXOS["tt"]), qxy0_idx))
+    for idx in range(qxy0_idx):
+        GIXOS["Qxy"][:, idx] = 2 * np.pi / metadata["wavelength"] * np.sqrt((np.cos(np.radians(GIXOS["tt"])) * np.sin(np.radians(metadata["tth"][idx])))**2 + (np.cos(np.radians(metadata["alpha_i"])) - np.cos(np.radians(GIXOS["tt"])) * np.cos(np.radians(metadata["tth"][idx])))**2)
+    GIXOS["Qz"] = 2 * np.pi / metadata["wavelength"] * (np.sin(np.radians(GIXOS["tt"])) + np.sin(np.radians(metadata["alpha_i"])))
+    GIXOS["GIXOS_raw"] = importGIXOSdata["Intensity"] [:, :qxy0_idx]
+    GIXOS["GIXOS_bkg"] = importbkg["Intensity"] [:, :qxy0_idx]
+    if qxy0_idx <= len(metadata["qxy0"]):
+        GIXOS_raw_largetth = np.mean(importGIXOSdata["Intensity"][:, qxy0_idx:], axis = 1)
+        GIXOS_bkg_largetth = np.mean(importbkg["Intensity"][:, qxy0_idx:], axis = 1)
+        bulkbkg = GIXOS_raw_largetth - GIXOS_bkg_largetth
+    else:
+        bulkbkg = np.zeros(len(metadata["qxy0"]), 1)
+
+    fdtt = np.radians(tt_step) / (np.arctan((np.tan(np.radians(GIXOS ["tt"]))*metadata["Ddet"] + metadata["pixel"]/2)/metadata["Ddet"]) - np.arctan((np.tan(np.radians(GIXOS ["tt"]))* metadata["Ddet"] - metadata["pixel"] / 2) / metadata["Ddet"]))
+    fdtt = fdtt / fdtt [0]
+    fdtt = fdtt[:, np.newaxis]
+
+    GIXOS["GIXOS"] = (GIXOS ["GIXOS_raw"] - GIXOS ["GIXOS_bkg"]) * fdtt - np.mean(bulkbkg[-1 - 10:], axis = 0) * fdtt
+    GIXOS["error"] = np.sqrt(np.sqrt(np.abs(GIXOS["GIXOS_raw"])) **2 + np.sqrt(np.abs(GIXOS["GIXOS_bkg"]))**2) * fdtt
+    GIXOS["bkg"] = 0
+    return GIXOS, DSbetaHW    # can also rewrite GIXOS_data_plot_prep to have a dependency = True/False statement bc most of the code is the same
+# can also rewrite DSbetaHW to be part of GIXOS dictionary, but for now it is fine to have it separate
+
+
+
+import copy
+
+def create_dependency_models(GIXOS, metadata, DSbetaHW):
+    model = {
+        "tt": np.ones(len(metadata['qz_selected'])),
+        "Qz": np.ones(len(metadata['qz_selected'])),
+        "Qxy": np.zeros((len(metadata['qz_selected']), GIXOS["Qxy"].shape[1]))
+    }
+
+    for idx in range(len(metadata['qz_selected'])):
+        rowidx_arr = np.where(GIXOS["Qz"] <= metadata['qz_selected'][idx])[0]
+        rowidx = rowidx_arr[-1]
+        model["tt"][idx] = GIXOS["tt"][rowidx]
+        model["Qz"][idx] = GIXOS["Qz"][rowidx]
+        model["Qxy"][idx, :] = GIXOS["Qxy"][rowidx, :]
+
+    assume_model = {
+        "1": copy.deepcopy(model),
+        "2": copy.deepcopy(model)
+    }
+
+    CWM_model = copy.deepcopy(model)
+
+    model["DS_RRF"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    model["DS_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    model["RRF_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["1"]["DS_RRF"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["1"]["DS_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["1"]["RRF_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["2"]["DS_RRF"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["2"]["DS_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    assume_model["2"]["RRF_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    CWM_model["DS_RRF"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    CWM_model["DS_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+    CWM_model["RRF_term"] = np.zeros((len(model["tt"]), GIXOS["GIXOS"].shape[1]))
+
+    metadata["energy"] = np.asarray(metadata["energy"])
+    metadata["alpha_i"] = np.asarray(metadata["alpha_i"])
+    metadata["RqxyHW"] = np.asarray(metadata["RqxyHW"])
+    metadata["DSqxyHW_real"] = np.asarray(metadata["DSqxyHW_real"])
+    # GIXOS["DSbetaHW"] = np.asarray(GIXOS["DSbetaHW"])        only add this and make changes if we say that DSbetaHW is part of GIXOS above
+    DSbetaHW = np.asarray(DSbetaHW)
+    metadata["tension"] = np.asarray(metadata["tension"])
+    metadata["temperature"] = np.asarray(metadata["temperature"])
+    metadata["kappa"] = np.asarray(metadata["kappa"])
+    metadata["amin"] = np.asarray(metadata["amin"])
+    for idx in range(GIXOS["GIXOS"].shape[1]):
+        show_last_plot = (idx == GIXOS["GIXOS"].shape[1] - 1)  # Only show plot on last iteration
+        model["DS_RRF"][:, idx], model["DS_term"][:, idx], model["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['kappa'], metadata['amin'], show_plot = False)
+        assume_model["1"]["DS_RRF"][:, idx], assume_model["1"]["DS_term"][:, idx], assume_model["1"]["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][0], metadata['amin'], show_plot = False)
+        assume_model["2"]["DS_RRF"][:, idx], assume_model["2"]["DS_term"][:, idx], assume_model["2"]["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][1], metadata['amin'], show_plot = False)
+        CWM_model["DS_RRF"][:, idx], CWM_model["DS_term"][:, idx], CWM_model["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], 0, metadata['amin'], show_plot = show_last_plot)
+    return model, assume_model, CWM_model

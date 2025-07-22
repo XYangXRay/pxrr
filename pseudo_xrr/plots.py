@@ -141,3 +141,110 @@ def R_pseudo_data_plot(GIXOS, metadata, xrr_config):
     filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_RRF_PYTHON.jpg"
     plt.savefig(filename, dpi=300)
     plt.show()
+
+
+def GIXOS_vs_Qz_plot(GIXOS, metadata):
+    # Plot GIXOS vs Qz for each Qxy_0
+    fig_refl = plt.figure("raw")
+    for idx in range(GIXOS["GIXOS"].shape[1]):
+        label = f"Q_xy,0 = {metadata['qxy0'][idx]:.2f}Å⁻¹"
+        plt.plot(GIXOS["Qz"], GIXOS["GIXOS"][:, idx] - GIXOS["bkg"], '-', linewidth=1.5, label=label)
+    plt.axhline(0, color='k', linestyle='-.', linewidth=1.5, label='0-line')
+    plt.xlim([0, 1.05])
+    plt.xlabel(r'$Q_z$ [$\mathrm{\AA}^{-1}$]', fontsize=12)
+    plt.ylabel("R*", fontsize=12)
+    plt.xticks(np.arange(0, 1.1, 0.2))
+    plt.legend(loc='upper right', frameon=False)
+    ax = plt.gca()
+    ax.tick_params(direction='out', width=2, labelsize=12)
+    plt.tight_layout()
+    plt.savefig(f"{metadata['path_out']}{metadata['sample']}_{min(metadata['scan']):05d}_{max(metadata['scan']):05d}_raw_all.jpg")
+
+def GIXOS_vs_Qxy_plot(GIXOS, metadata):
+    # Plot GIXOS vs Qxy at selected Qz
+    fig_refl_qxy = plt.figure("raw Qxy")
+    for idx, qz_val in enumerate(metadata['qz_selected']):
+        plotrowidx = np.where(GIXOS["Qz"] <= qz_val)[0]
+        if len(plotrowidx) == 0:
+            continue
+        plotrowidx = plotrowidx[-1]
+        start = max(plotrowidx - 3, 0)
+        end = min(plotrowidx + 4, GIXOS["GIXOS"].shape[0])
+        ydata = np.mean(GIXOS["GIXOS"][start:end, :] - GIXOS["bkg"], axis=0) * 100 ** idx
+        label = f"Q_z = {GIXOS['Qz'][plotrowidx]:.2f}Å⁻¹"
+        plt.plot(GIXOS["Qxy"][plotrowidx, :], ydata, 'o:', markersize=4, linewidth=1.5, label=label)
+    plt.xlim([0.015, 1])
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel(r'$Q_{xy}$ [$\mathrm{\AA}^{-1}$]', fontsize=12)
+    plt.ylabel("GIXOS", fontsize=12)
+    ax = plt.gca()
+    ax.tick_params(direction='out', width=2, labelsize=12)
+    plt.legend(loc='upper right', frameon=False, fontsize=12, reverse = True) # added reverse to match the order that the lines are plotted in the 2nd graph (also see last cell)
+    plt.tight_layout()
+
+
+def dependency_plot(GIXOS, metadata, model, assume_model, CWM_model):
+    fig_refl = plt.figure(figsize=(9, 9))
+    ax = fig_refl.add_subplot(111)
+    legendtext = []
+
+    # First loop: Plot experimental points
+    for idx in range(len(model['Qz'])):
+        plotrowidx = np.where(GIXOS['Qz'] <= metadata["qz_selected"][idx])[0][-1]
+        
+        intensity = np.mean(GIXOS['GIXOS'][plotrowidx-1:plotrowidx+2, :] - GIXOS['bkg'], axis=0)
+        scale_factor = 4 / (180 / np.pi)**2 / metadata["RFscaling"] * metadata["rho_b"]**2 / np.sin(np.radians(metadata["alpha_i"])) * 100**idx
+
+        ax.plot(
+            GIXOS['Qxy'][plotrowidx, :],
+            intensity * scale_factor,
+            'o',
+            markersize=7,
+            markeredgecolor=metadata["colorset"][idx],
+            linewidth=1.5
+        )
+
+        legendtext.append(f"Q_z = {GIXOS['Qz'][plotrowidx]:.2f} Å⁻¹")
+
+    #colorset.reverse()  # Reverse the colorset to match the order of plots
+
+
+
+    # Second loop: Plot model fits and comparisons
+    for idx in range(len(model['Qz'])):
+        plotrowidx = np.where(GIXOS['Qz'] <= metadata["qz_selected"][idx])[0][-1]
+
+        mean_intensity = np.mean(GIXOS['GIXOS'][plotrowidx-1:plotrowidx+2, 0] - GIXOS['bkg'], axis=0)
+        norm_factor = mean_intensity / metadata["RFscaling"] / model['DS_term'][idx, 0]
+        scale_factor = 4 / (180 / np.pi)**2 * metadata["rho_b"]**2 / np.sin(np.radians(metadata["alpha_i"])) * 100**idx
+
+        ax.plot(model['Qxy'][idx, :], model['DS_term'][idx, :] * norm_factor * scale_factor, 
+                linewidth=2, color=metadata["colorset"][idx])
+
+        for m_idx, assume in enumerate([assume_model["1"], assume_model["2"]]):
+            term = assume['DS_term'][idx, :] * model['DS_term'][idx, -1] / assume['DS_term'][idx, -1]
+            ax.plot(assume['Qxy'][idx, :], term * norm_factor * scale_factor,
+                    linestyle='--', linewidth=2, color=metadata["colorset"][idx])
+
+        cwm_term = CWM_model['DS_term'][idx, :] * model['DS_term'][idx, -1] / CWM_model['DS_term'][idx, -1]
+        ax.plot(CWM_model['Qxy'][idx, :], cwm_term * norm_factor * scale_factor,
+                'k-.', linewidth=0.5)
+
+    # Formatting
+    #legendtext.reverse()  # Reverse the legend text to match the order of plots
+
+    ax.set_xlim([0.02, 0.6])
+    ax.set_xscale('log')
+    ax.set_yscale('log')
+    ax.set_xlabel('Qₓᵧ [Å⁻¹]', fontsize=14)
+    ax.set_ylabel('I_DS', fontsize=14)
+    ax.tick_params(labelsize=14, width=2, direction='out')
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.legend(legendtext, loc='upper right', frameon=True, fontsize=14, reverse = True)
+    ax.set_title(f"κ: {metadata['kappa']:.0f}±{metadata['kappa_deviation']:.0f} kbT, aₘᵢₙ: {metadata['amin']:.1f} Å")
+
+    # Save the figure
+    filename = f"{metadata['sample']}_{min(metadata['scan']):05d}_{max(metadata['scan']):05d}_Qxy.jpg"
+    plt.savefig(os.path.join(metadata['path_out'], filename), dpi=300, bbox_inches='tight')
