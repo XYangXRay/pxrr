@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import math
 import os
+from joblib import Parallel, delayed
 from pseudo_xrr.gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
 from scipy.integrate import dblquad
 from scipy.special import kv as besselk, jv as besselj, gamma
@@ -430,51 +431,85 @@ def rect_slit_function(GIXOS, metadata):
 
 
     angle_factor = (np.pi / 180) ** 2 * (9.42e-6) ** 2 # taking it outside of the loop decreases computation time
-    for idx in range(len(xrr_config["beta_xrr"])):
+    
+    def process_idx(idx):
         beta = xrr_config["beta_xrr"][idx]
         sin_beta = np.sin(np.radians(beta))
-        fun_film = lambda tt, tth: film_integral_delta_beta_delta_phi(tt, tth, xrr_config["kbT_gamma"], xrr_config["wave_number"], xrr_config["beta_xrr"][idx], metadata["Lk"], metadata["amin"])
+        Lk_idx = metadata["Lk"] if np.isscalar(metadata["Lk"]) else metadata["Lk"][idx]  # Handles array or scalar Lk
+
+        fun_film = lambda tt, tth: film_integral_delta_beta_delta_phi(
+            tt, tth, xrr_config["kbT_gamma"], xrr_config["wave_number"],
+            beta, Lk_idx, metadata["amin"]
+        )
+
+        upper_vals = []
+        lower_vals = []
+
         for phi_idx in range(xrr_config["delta_beta_array_for_qxy_slit_min"].shape[1]):
-            upper, _ = dblquad(lambda tth, tt: fun_film(tt, tth), (xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx]), (xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx]), lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx], lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],  epsabs=1e-12, epsrel=1e-10)
-            xrr_config["region_around_radial_u_r"][idx, phi_idx] = upper * angle_factor / sin_beta
+            # Upper
+            upper, _ = dblquad(
+                lambda tth, tt: fun_film(tt, tth),
+                xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx],
+                xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
+                lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx],
+                lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],
+                epsabs=1e-12, epsrel=1e-10
+            )
+            upper_vals.append(upper * angle_factor / sin_beta)
 
-            lower, _ = dblquad(lambda tth, tt: fun_film (tt, tth), (xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx]), (xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx]), lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx], lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],  epsabs=1e-12, epsrel=1e-10)
-            xrr_config["region_around_radial_l_r"][idx, phi_idx] = lower * angle_factor / sin_beta
+            # Lower
+            lower, _ = dblquad(
+                lambda tth, tt: fun_film(tt, tth),
+                xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+                xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_array_for_qxy_slit_min"][idx, phi_idx],
+                lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx],
+                lambda _: xrr_config["phi_array_for_qxy_slit_min"][idx, phi_idx + 1],
+                epsabs=1e-12, epsrel=1e-10
+            )
+            lower_vals.append(lower * angle_factor / sin_beta)
 
-        # Run the integral
-        result, _ = dblquad(func=fun_film,
-        a= xrr_config["phi_max_qxy_slit_min"][idx],
-        b= xrr_config["delta_phi_HW"][idx],                
-        gfun = xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        hfun = xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
-        epsabs=1e-8, epsrel=1e-6
+        # diff_r
+        result, _ = dblquad(
+            func=fun_film,
+            a=xrr_config["phi_max_qxy_slit_min"][idx],
+            b=xrr_config["delta_phi_HW"][idx],
+            gfun=lambda _: xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+            hfun=lambda _: xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
+            epsabs=1e-8, epsrel=1e-6
         )
-        #result, _ = dblquad(
-        #func=fun_film,
-        #a = xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        #b = xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
-        #gfun=lambda beta: xrr_config["phi_max_qxy_slit_min"][idx],
-        #hfun=lambda beta: xrr_config["delta_phi_HW"][idx] + xrr_config["delta_phi_HW"][idx],  epsabs=1e-12, epsrel=1e-10
-        #)
+        diff_r = result * angle_factor / sin_beta
 
-
-    # Store the result (second column, index 0 in Python)
-        xrr_config["diff_r"][idx] = (result * angle_factor / sin_beta)
-            
-        result2, _ = dblquad(func=fun_film,
-        a=xrr_config["bkg_phi"][idx] - xrr_config["delta_phi_HW"][idx],
-        b=xrr_config["bkg_phi"][idx] + xrr_config["delta_phi_HW"][idx],
-        gfun=xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        hfun=xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],    
-        epsabs=1e-8, epsrel=1e-6
-        #gfun=lambda beta: xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
-        #hfun=lambda beta: xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],  epsabs=1e-12, epsrel=1e-10
+        # diff_r_bkgoff
+        result2, _ = dblquad(
+            func=fun_film,
+            a=xrr_config["bkg_phi"][idx] - xrr_config["delta_phi_HW"][idx],
+            b=xrr_config["bkg_phi"][idx] + xrr_config["delta_phi_HW"][idx],
+            gfun=lambda _: xrr_config["beta_xrr"][idx] - xrr_config["delta_beta_HW"][idx],
+            hfun=lambda _: xrr_config["beta_xrr"][idx] + xrr_config["delta_beta_HW"][idx],
+            epsabs=1e-8, epsrel=1e-6
         )
-        xrr_config["diff_r_bkgoff"][idx] = (result2 * angle_factor / sin_beta)
+        diff_r_bkgoff = result2 * angle_factor / sin_beta
 
+        upper_vals = np.array(upper_vals, dtype=np.float64).flatten()
+        lower_vals = np.array(lower_vals, dtype=np.float64).flatten()
+
+        return idx, upper_vals, lower_vals, diff_r, diff_r_bkgoff
+
+    results = Parallel(n_jobs=-1, backend="loky")(
+        delayed(process_idx)(i) for i in range(len(xrr_config["beta_xrr"]))
+    )
+
+    # Fill in results
+    for idx, upper_vals, lower_vals, diff_r, diff_r_bkgoff in results:
+        xrr_config["region_around_radial_u_r"][idx, :] = upper_vals
+        xrr_config["region_around_radial_l_r"][idx, :] = lower_vals
+        xrr_config["diff_r"][idx] = diff_r
+        xrr_config["diff_r_bkgoff"][idx] = diff_r_bkgoff
+    
     xrr_config["Rterm_rect_slit"] = xrr_config["specular_qxy_min"] + 2*(np.sum(xrr_config["region_around_radial_u_r"] + xrr_config["region_around_radial_u_r"], axis = 1) + xrr_config["diff_r"])
     xrr_config["bkgterm_rect_slit"] = xrr_config["diff_r_bkgoff"]
     return xrr_config
+
 
 
 
@@ -615,9 +650,9 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
 from pseudo_xrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
-def rectangular_slit():     # can make this a main function to run the whole code and have a parameter be the text file
-    importGIXOSdata, importbkg = load_data('./testing_data/gixos_metadata.yaml')
-    metadata = load_metadata('./testing_data/gixos_metadata.yaml')
+def rectangular_slit(metadata_file = './testing_data/gixos_metadata.yaml'):     # can make this a main function to run the whole code and have a parameter be the text file
+    importGIXOSdata, importbkg = load_data(metadata_file)
+    metadata = load_metadata(metadata_file)
     importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
     importGIXOSdata, importbkg, tt_step = remove_negative_2theta(importGIXOSdata, importbkg)
     metadata = real_space_2theta(metadata)
@@ -725,10 +760,22 @@ def create_dependency_models(GIXOS, metadata, DSbetaHW):
     metadata["temperature"] = np.asarray(metadata["temperature"])
     metadata["kappa"] = np.asarray(metadata["kappa"])
     metadata["amin"] = np.asarray(metadata["amin"])
-    for idx in range(GIXOS["GIXOS"].shape[1]):
+
+
+    def process(idx):
         show_last_plot = (idx == GIXOS["GIXOS"].shape[1] - 1)  # Only show plot on last iteration
-        model["DS_RRF"][:, idx], model["DS_term"][:, idx], model["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['kappa'], metadata['amin'], show_plot = False)
-        assume_model["1"]["DS_RRF"][:, idx], assume_model["1"]["DS_term"][:, idx], assume_model["1"]["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][0], metadata['amin'], show_plot = False)
-        assume_model["2"]["DS_RRF"][:, idx], assume_model["2"]["DS_term"][:, idx], assume_model["2"]["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][1], metadata['amin'], show_plot = False)
-        CWM_model["DS_RRF"][:, idx], CWM_model["DS_term"][:, idx], CWM_model["RRF_term"][:, idx] = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], 0, metadata['amin'], show_plot = show_last_plot)
+        model_DS_RRF, model_DS_term, model_RRF_term = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['kappa'], metadata['amin'], show_plot = False)
+        assume_model_1_DS_RRF, assume_model_1_DS_term, assume_model_1_RRF_term = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][0], metadata['amin'], show_plot = False)
+        assume_model_2_DS_RRF, assume_model_2_DS_term, assume_model_2_RRF_term = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], metadata['assume_kappa'][1], metadata['amin'], show_plot = False)
+        CWM_model_DS_RRF, CWM_model_DS_term, CWM_model_RRF_term = calc_film_DS_RRF_integ(model["tt"], metadata["qxy0"][idx], metadata['energy']/1000, metadata['alpha_i'], metadata['RqxyHW'], metadata['DSqxyHW_real'][idx], DSbetaHW, metadata['tension'], metadata['temperature'], 0, metadata['amin'], show_plot = show_last_plot)
+        return idx, model_DS_RRF, model_DS_term, model_RRF_term, assume_model_1_DS_RRF, assume_model_1_DS_term, assume_model_1_RRF_term, assume_model_2_DS_RRF, assume_model_2_DS_term, assume_model_2_RRF_term, CWM_model_DS_RRF, CWM_model_DS_term, CWM_model_RRF_term
+    results = Parallel(n_jobs=-1, backend="loky")(
+        delayed(process)(i) for i in range(GIXOS["GIXOS"].shape[1])
+    )
+
+    for idx, model_DS_RRF, model_DS_term, model_RRF_term, assume_model_1_DS_RRF, assume_model_1_DS_term, assume_model_1_RRF_term, assume_model_2_DS_RRF, assume_model_2_DS_term, assume_model_2_RRF_term, CWM_model_DS_RRF, CWM_model_DS_term, CWM_model_RRF_term in results:
+        model["DS_RRF"][:, idx], model["DS_term"][:, idx], model["RRF_term"][:, idx] = model_DS_RRF, model_DS_term, model_RRF_term
+        assume_model["1"]["DS_RRF"][:, idx], assume_model["1"]["DS_term"][:, idx], assume_model["1"]["RRF_term"][:, idx] = assume_model_1_DS_RRF, assume_model_1_DS_term, assume_model_1_RRF_term
+        assume_model["2"]["DS_RRF"][:, idx], assume_model["2"]["DS_term"][:, idx], assume_model["2"]["RRF_term"][:, idx] = assume_model_2_DS_RRF, assume_model_2_DS_term, assume_model_2_RRF_term
+        CWM_model["DS_RRF"][:, idx], CWM_model["DS_term"][:, idx], CWM_model["RRF_term"][:, idx] = CWM_model_DS_RRF, CWM_model_DS_term, CWM_model_RRF_term
     return model, assume_model, CWM_model
