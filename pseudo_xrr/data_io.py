@@ -512,10 +512,6 @@ def rect_slit_function(GIXOS, metadata):
 
 
 
-
-
-
-
 def conversion_to_reflectivity(GIXOS, xrr_config):
     numerator_scaling = (xrr_config["Rterm_rect_slit"] - xrr_config["bkgterm_rect_slit"])
     denominator = GIXOS["DS_term_integ"] * GIXOS["transmission"][:, 3]  # Element-wise multiplication
@@ -531,13 +527,6 @@ def conversion_to_reflectivity(GIXOS, xrr_config):
     GIXOS["refl_roughness"] = np.sqrt(-np.log(GIXOS["refl_roughness_term"]) / GIXOS["Qz"]**2)
     GIXOS["SF"] = np.column_stack([GIXOS["SF"], GIXOS["refl_roughness"], GIXOS["refl_roughness_term"]])
     return GIXOS
-
-
-
-
-
-
-
 
 
 def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):

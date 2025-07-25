@@ -35,8 +35,8 @@ paths:
   xrr_datafile: "XRR-10mM_CaCl2_pH7p03_100ppm_PFOA_1.txt"
   #path:         "testing_data/CaCl2_data/"
   #path_out:     "testing_data/output/"
-  path: "C:/Users/alexp/OneDrive/PseudoXRR/10mM_CaCl2_pH7p03_100ppm_PFOA_1/"         
-  path_out: "C:/Users/alexp/OneDrive/PseudoXRR/GitHub_Testing/"
+  path: "testing_data/CaCl2_data/"         
+  path_out: "testing_data/output/"
 
 sample:      "instrument"
 scan:        [46392, 46394, 46396, 46398, 46400]
