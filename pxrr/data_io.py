@@ -4,7 +4,7 @@ import pandas as pd
 import math
 import os
 from joblib import Parallel, delayed
-from pseudo_xrr.gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
+from pxrr.gixos import GIXOS_fresnel, GIXOS_Tsqr, GIXOS_dQz, calc_film_DS_RRF_integ, film_integral_delta_beta_delta_phi
 from scipy.integrate import dblquad
 from scipy.special import kv as besselk, jv as besselj, gamma
 
@@ -638,7 +638,7 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
 
 
-from pseudo_xrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
+from pxrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
 def rectangular_slit(metadata_file = './testing_data/gixos_metadata.yaml'):     # can make this a main function to run the whole code and have a parameter be the text file
     importGIXOSdata, importbkg = load_data(metadata_file)
     metadata = load_metadata(metadata_file)

@@ -1,5 +1,5 @@
-from pseudo_xrr.data_io import load_data, load_metadata, binning_GIXOS_data, remove_negative_2theta, dependency_real_space_2theta, GIXOS_data_plot_prep, GIXOS_RF_and_SF, rect_slit_function, conversion_to_reflectivity, GIXOS_file_output, Qxy_GIXOS_data_plot_prep, create_dependency_models
-from pseudo_xrr.plots import GIXOS_vs_Qz_plot, GIXOS_vs_Qxy_plot, dependency_plot
+from pxrr.data_io import load_data, load_metadata, binning_GIXOS_data, remove_negative_2theta, dependency_real_space_2theta, GIXOS_data_plot_prep, GIXOS_RF_and_SF, rect_slit_function, conversion_to_reflectivity, GIXOS_file_output, Qxy_GIXOS_data_plot_prep, create_dependency_models
+from pxrr.plots import GIXOS_vs_Qz_plot, GIXOS_vs_Qxy_plot, dependency_plot
 def dependency_wrapper(metadata_file = './testing_data/gixos_metadata.yaml'):
     importGIXOSdata, importbkg = load_data(metadata_file)
     metadata = load_metadata(metadata_file)
