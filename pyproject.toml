@@ -20,7 +20,9 @@ dependencies = [
     "pandas",
     "matplotlib",
     "scipy",
-    "pyyaml"
+    "pyyaml",
+    "ipython",
+    "joblib"
 ]
 
 [project.urls]
