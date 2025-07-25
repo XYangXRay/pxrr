@@ -16,7 +16,8 @@ gamma_E: 0.5772156649015329
 Qc:       0.0217
 energy:   14400
 alpha_i:  0.0728
-Ddet:     710
+Ddet:     670
+# Ddet: 710
 pixel:    0.172
 footprint: 10
 
@@ -32,8 +33,10 @@ DSpxHW:  3.5
 paths:
   path_xrr:    "testing_data/"
   xrr_datafile: "XRR-10mM_CaCl2_pH7p03_100ppm_PFOA_1.txt"
-  path:         "testing_data/CaCl2_data/"
-  path_out:     "testing_data/output/"
+  #path:         "testing_data/CaCl2_data/"
+  #path_out:     "testing_data/output/"
+  path: "C:/Users/alexp/OneDrive/PseudoXRR/10mM_CaCl2_pH7p03_100ppm_PFOA_1/"         
+  path_out: "C:/Users/alexp/OneDrive/PseudoXRR/GitHub_Testing/"
 
 sample:      "instrument"
 scan:        [46392, 46394, 46396, 46398, 46400]
@@ -50,3 +53,12 @@ physical_constants:
 derived:
   kappa: 3
   amin: 5
+
+# For Dependency will need to add:
+# DSqxyHW
+# assume_kappa
+# rho_b
+dependency:
+  qz_selected: [0.1, 0.3, 0.35, 0.4, 0.6]
+  kappa_deviation: 3
+  rho_b: 9.42E-6
