@@ -2,18 +2,18 @@
 Pseudo XRR
 ==========
 
-.. image:: https://github.com/AlexP226/pseudo_xrr/actions/workflows/testing.yml/badge.svg
-   :target: https://github.com/AlexP226/pseudo_xrr/actions/workflows/testing.yml
+.. image:: https://github.com/nsls2/pxrr/actions/workflows/testing.yml/badge.svg
+   :target: https://github.com/nsls2/pxrr/actions/workflows/testing.yml
 
 
-.. image:: https://img.shields.io/pypi/v/pseudo_xrr.svg
-        :target: https://pypi.python.org/pypi/pseudo_xrr
+.. image:: https://img.shields.io/pypi/v/ppxrr.svg
+        :target: https://pypi.python.org/pypi/ppxrr
 
 
 Python package for pseudo X-ray reflectivity
 
 * Free software: 3-clause BSD license
-* Documentation: (COMING SOON!) https://AlexP226.github.io/pseudo_xrr.
+* Documentation: (COMING SOON!) https://nsls2.github.io/pxrr.
 
 Features
 --------
@@ -23,24 +23,20 @@ Features
 Installation
 ------------
 
-To install the `pseudo_xrr` package, follow these steps:
+To install the `pxrr` package in a local development environment, follow these steps:
 
 1. Clone the repository:
 
 .. code-block:: bash
 
-    git clone https://github.com/AlexP226/pseudo_xrr.git
-    cd pseudo_xrr
+    git clone https://github.com/nsls2/pxrr.git
+    cd pxrr
 
-2. Create a conda environment:
-
-.. code-block:: bash
-
-    conda create -n pseudo_xrr_env python=3.10
-    conda activate pseudo_xrr_env
-
-3. Install the package in editable mode:
+2. Create the pixi environments (default and 'dev'):
 
 .. code-block:: bash
 
-    pip install -e .
+    pixi install --all
+
+3. That's all!
+

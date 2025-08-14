@@ -2,7 +2,6 @@ include AUTHORS.rst
 include CONTRIBUTING.rst
 include LICENSE
 include README.rst
-include requirements.txt
 
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
@@ -10,7 +9,7 @@ recursive-exclude * *.py[co]
 recursive-include docs *.rst conf.py Makefile make.bat
 
 include versioneer.py
-include pseudo_xrr/_version.py
+include pxrr/_version.py
 
 # If including data files in the package, add them like:
 # include path/to/data_file
