@@ -39,4 +39,3 @@ To install the `pxrr` package in a local development environment, follow these s
     pixi install --all
 
 3. That's all!
-
