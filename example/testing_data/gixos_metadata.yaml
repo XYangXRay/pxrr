@@ -35,7 +35,7 @@ paths:
   xrr_datafile: "XRR-10mM_CaCl2_pH7p03_100ppm_PFOA_1.txt"
   #path:         "testing_data/CaCl2_data/"
   #path_out:     "testing_data/output/"
-  path: "testing_data/CaCl2_data/"         
+  path: "testing_data/CaCl2_data/"
   path_out: "testing_data/output/"
 
 sample:      "instrument"
