@@ -1,30 +1,36 @@
 # ~~~  Chen Shen Functions: ~~~     # can paste functions into a separate py file and import
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy
-from scipy.integrate import trapezoid, simpson
-from scipy.special import kv as besselk, jv as besselj, gamma
-from scipy.constants import pi, Boltzmann as kb
-#from numba import njit
-#@jit(nopython=True, parallel=True)  # Use Numba for performance optimization
-from scipy.integrate import quad # ChatGPT contribution to replace the integration with quad for better performance
+from scipy.constants import Boltzmann as kb
+from scipy.constants import pi
+
+# from numba import njit
+# @jit(nopython=True, parallel=True)  # Use Numba for performance optimization
+from scipy.integrate import (  # ChatGPT contribution to replace the integration with quad for better performance
+    quad,
+    simpson,
+    trapezoid,
+)
+from scipy.special import gamma
+from scipy.special import jv as besselj
+from scipy.special import kv as besselk
 
 
-def film_correlation_integrand_replacement(r, qxy, eta, Lk, amin): # Changes made
+def film_correlation_integrand_replacement(r, qxy, eta, Lk, amin):  # Changes made
     r = np.asarray(r)  # Ensure r is a numpy array
-    rad_term = np.sqrt(r[None, None, :]**2 + amin**2)  # r turned into r[None, None, :] b/c sizing errors when integrating and the [..., None] at the end was removed
-    term1 = rad_term**(1 - eta[..., None])
+    rad_term = np.sqrt(
+        r[None, None, :] ** 2 + amin**2
+    )  # r turned into r[None, None, :] b/c sizing errors when integrating and the [..., None] at the end was removed
+    term1 = rad_term ** (1 - eta[..., None])
     term2 = np.exp(-eta[..., None] * besselk(0, rad_term / Lk)) - 1
     term3 = besselj(0, rad_term * qxy[..., None])
     return term1 * term2 * term3
 
 
-
-
-def film_integral_delta_beta_delta_phi(beta, phi, kbT_gamma, wave_number, alpha, Lk, amin):   # error arrises here
-    beta = np.asarray(beta) # converting to numpy array for performance/vectorization
+def film_integral_delta_beta_delta_phi(beta, phi, kbT_gamma, wave_number, alpha, Lk, amin):  # error arrises here
+    beta = np.asarray(beta)  # converting to numpy array for performance/vectorization
     phi = np.asarray(phi)
-
 
     qmax = pi / amin
     beta_rad = np.radians(beta)
@@ -38,16 +44,18 @@ def film_integral_delta_beta_delta_phi(beta, phi, kbT_gamma, wave_number, alpha,
     cosa = np.cos(alpha_rad)
     sina = np.sin(alpha_rad)
 
-    qxy = wave_number * np.sqrt((cosb * sinp)**2 + (cosa - cosb * cosp)**2)
+    qxy = wave_number * np.sqrt((cosb * sinp) ** 2 + (cosa - cosb * cosp) ** 2)
     qz = wave_number * (sina + sinb)
     eta = (kbT_gamma / (2 * pi)) * qz**2
 
     r_vals = np.linspace(0.001, 8 * Lk, 300)
     integrand_vals = film_correlation_integrand_replacement(r_vals, qxy, eta, Lk, amin)
-    integral_vals = trapezoid(integrand_vals, r_vals, axis=-1) # might need axis = 1
+    integral_vals = trapezoid(integrand_vals, r_vals, axis=-1)  # might need axis = 1
     C_prime = 2 * pi * integral_vals
 
-    xi = 2 ** (1 - eta) * gamma(1 - 0.5 * eta) / gamma(0.5 * eta) * (2 * np.pi) / (qz ** 2)    # xi used to = (2 * Lk) ** eta, but in MATLAB looks like: xi = (2.^(1-eta).*gamma(1-0.5*eta)./gamma(0.5*eta)) *2*pi./qz.^2;
+    xi = (
+        2 ** (1 - eta) * gamma(1 - 0.5 * eta) / gamma(0.5 * eta) * (2 * np.pi) / (qz**2)
+    )  # xi used to = (2 * Lk) ** eta, but in MATLAB looks like: xi = (2.^(1-eta).*gamma(1-0.5*eta)./gamma(0.5*eta)) *2*pi./qz.^2;
 
     exp_term = np.exp(eta * besselk(0, 1 / (Lk * qmax)))
     result = (xi * qxy ** (eta - 2) + C_prime / qz**2) * (1 / qmax) ** eta * exp_term
@@ -67,23 +75,43 @@ def film_integral_approx_delta_beta_delta_phi(beta, phi, kbT_gamma, wave_number,
     cosa = np.cos(alpha_rad)
     sina = np.sin(alpha_rad)
 
-    qxy = wave_number * np.sqrt((cosb * sinp)**2 + (cosa - cosb * cosp)**2)
+    qxy = wave_number * np.sqrt((cosb * sinp) ** 2 + (cosa - cosb * cosp) ** 2)
     qz = wave_number * (sina + sinb)
     eta = (kbT_gamma / (2 * pi)) * qz**2
 
     # Safeguard against divide-by-zero or underflow
     qxy = np.maximum(qxy, 1e-12)
     safe_besselk_arg = np.maximum(1 / (Lk * qmax), 1e-12)
-    #   
+    #
 
-    result = kbT_gamma * (1 / qmax)**eta * np.exp(eta * besselk(0, safe_besselk_arg)) * qxy**eta / (qxy**2 + (Lk**2) * qxy**4)
+    result = (
+        kbT_gamma
+        * (1 / qmax) ** eta
+        * np.exp(eta * besselk(0, safe_besselk_arg))
+        * qxy**eta
+        / (qxy**2 + (Lk**2) * qxy**4)
+    )
     return result
 
 
 # -------------------- Main Calculation -------------------- #
 
-def calc_film_DS_RRF_integ(beta_space, qxy0, energy, alpha, Rqxy_HWHM, DSqxy_HWHM, DSbeta_HWHM,
-                           tension, temp, kapa, amin, use_approx=False, show_plot=True):
+
+def calc_film_DS_RRF_integ(
+    beta_space,
+    qxy0,
+    energy,
+    alpha,
+    Rqxy_HWHM,
+    DSqxy_HWHM,
+    DSbeta_HWHM,
+    tension,
+    temp,
+    kapa,
+    amin,
+    use_approx=False,
+    show_plot=True,
+):
     qmax = pi / amin
     wavelength = 12.4 / energy
     wave_number = 2 * pi / wavelength
@@ -108,20 +136,26 @@ def calc_film_DS_RRF_integ(beta_space, qxy0, energy, alpha, Rqxy_HWHM, DSqxy_HWH
     C_integrand = np.zeros((len(qz_space), len(r_vals)))
 
     for idx, eta_val in enumerate(eta):
-        C_integrand[idx, :] = 2 * pi * r_grid**(1 - eta_val) * (np.exp(-eta_val * besselk(0, r_grid / Lk)) - 1)
+        C_integrand[idx, :] = 2 * pi * r_grid ** (1 - eta_val) * (np.exp(-eta_val * besselk(0, r_grid / Lk)) - 1)
 
     C = trapezoid(C_integrand, r_vals, axis=1)
-    RRF_term = ((xi / kbT_gamma) * Rqxy_HWHM**eta + Rqxy_HWHM**2 * C / (4 * pi)) * (1 / qmax)**eta * np.exp(eta * besselk(0, 1 / (Lk * qmax)))
+    RRF_term = (
+        ((xi / kbT_gamma) * Rqxy_HWHM**eta + Rqxy_HWHM**2 * C / (4 * pi))
+        * (1 / qmax) ** eta
+        * np.exp(eta * besselk(0, 1 / (Lk * qmax)))
+    )
 
     DS_term = np.zeros(len(beta_space))
     phi_grid = np.linspace(phi_lower, phi_upper, 100)
 
     for idx, beta in enumerate(beta_space):
         beta_grid = np.linspace(beta_lower[idx], beta_upper[idx], 100)
-        beta_mesh, phi_mesh = np.meshgrid(beta_grid, phi_grid, indexing='ij')
+        beta_mesh, phi_mesh = np.meshgrid(beta_grid, phi_grid, indexing="ij")
 
         if use_approx:
-            vals = film_integral_approx_delta_beta_delta_phi(beta_mesh, phi_mesh, kbT_gamma, wave_number, alpha, Lk, amin)
+            vals = film_integral_approx_delta_beta_delta_phi(
+                beta_mesh, phi_mesh, kbT_gamma, wave_number, alpha, Lk, amin
+            )
         else:
             vals = film_integral_delta_beta_delta_phi(beta_mesh, phi_mesh, kbT_gamma, wave_number, alpha, Lk, amin)
 
@@ -144,14 +178,16 @@ def calc_film_DS_RRF_integ(beta_space, qxy0, energy, alpha, Rqxy_HWHM, DSqxy_HWH
 
     return DS_RRF, DS_term, RRF_term
 
+
 # -------------------- CLI -------------------- #
 
-def GIXOS_fresnel(Qz, Qc):    # apparently does not limit to 1 like MATLAB code does - see AI
+
+def GIXOS_fresnel(Qz, Qc):  # apparently does not limit to 1 like MATLAB code does - see AI
     Qz = np.asarray(Qz, dtype=np.complex128)  # allow complex arithmetic
-    sqrt_term = np.sqrt(Qz**2 - Qc**2)        # may be complex when Qz < Qc
-    r = (Qz - sqrt_term) / (Qz + sqrt_term)   # reflection coefficient
-    refl = np.abs(r)**2                       # reflectivity (real-valued)
-    return np.column_stack((Qz.real, refl))   # return Qz as real part only
+    sqrt_term = np.sqrt(Qz**2 - Qc**2)  # may be complex when Qz < Qc
+    r = (Qz - sqrt_term) / (Qz + sqrt_term)  # reflection coefficient
+    refl = np.abs(r) ** 2  # reflectivity (real-valued)
+    return np.column_stack((Qz.real, refl))  # return Qz as real part only
 
 
 def GIXOS_dQz(Qz, energy_eV, alpha_i_deg, Ddet_mm, footprint_mm):
@@ -159,7 +195,9 @@ def GIXOS_dQz(Qz, energy_eV, alpha_i_deg, Ddet_mm, footprint_mm):
     wavelength = planck / energy_eV * 10  # Å
 
     Qz = np.asarray(Qz).reshape(-1, 1)
-    dQz = np.zeros((Qz.shape[0], 6)) # change np.zeros((Qz.shape[0], 5)) to np.zeros((Qz.shape[0], 6)) to match MATLAB output and produce 6 columns
+    dQz = np.zeros(
+        (Qz.shape[0], 6)
+    )  # change np.zeros((Qz.shape[0], 5)) to np.zeros((Qz.shape[0], 6)) to match MATLAB output and produce 6 columns
     dQz[:, 0] = Qz[:, 0]
 
     alpha_i_rad = np.radians(alpha_i_deg)
@@ -176,13 +214,14 @@ def GIXOS_dQz(Qz, energy_eV, alpha_i_deg, Ddet_mm, footprint_mm):
     dQz[:, 2] = alpha_f_max
     dQz[:, 3] = alpha_f_min
     dQz[:, 4] = delta_qz
-    dQz[:, 5] = dQz[:, 4] / dQz[:, 0] # added to match MATLAB output and create new column
+    dQz[:, 5] = dQz[:, 4] / dQz[:, 0]  # added to match MATLAB output and create new column
 
     return dQz
 
 
 def vineyard_factor(alpha_f_deg, energy_eV, alpha_i_deg):
     import numpy as np
+
     planck = 1240.4  # eV·nm
     qc = 0.0218
     beta = 1e-9
@@ -192,7 +231,7 @@ def vineyard_factor(alpha_f_deg, energy_eV, alpha_i_deg):
     alpha_i_rad = np.radians(alpha_i_deg)
     alpha_f_rad = np.radians(alpha_f_deg)
 
-    li_term = (alpha_c**2 - alpha_i_rad**2)**2 + (2 * beta)**2
+    li_term = (alpha_c**2 - alpha_i_rad**2) ** 2 + (2 * beta) ** 2
     l_i = 1 / np.sqrt(2) * np.sqrt(alpha_c**2 - alpha_i_rad**2 + np.sqrt(li_term))
 
     x = alpha_f_deg / np.degrees(alpha_c)
@@ -202,9 +241,9 @@ def vineyard_factor(alpha_f_deg, energy_eV, alpha_i_deg):
     l_f = np.zeros_like(x, dtype=np.float64)
     mask = x > 0
     if np.any(mask):
-        T[mask] = np.abs(2 * x[mask] / (x[mask] + np.sqrt(x[mask]**2 - 1 - 2j * beta / alpha_c**2)))**2
-        lf_term = (alpha_c**2 - alpha_f_rad[mask]**2)**2 + (2 * beta)**2
-        l_f[mask] = 1 / np.sqrt(2) * np.sqrt(alpha_c**2 - alpha_f_rad[mask]**2 + np.sqrt(lf_term))
+        T[mask] = np.abs(2 * x[mask] / (x[mask] + np.sqrt(x[mask] ** 2 - 1 - 2j * beta / alpha_c**2))) ** 2
+        lf_term = (alpha_c**2 - alpha_f_rad[mask] ** 2) ** 2 + (2 * beta) ** 2
+        l_f[mask] = 1 / np.sqrt(2) * np.sqrt(alpha_c**2 - alpha_f_rad[mask] ** 2 + np.sqrt(lf_term))
 
     normalization = wavelength / (2 * np.pi) / l_i
     vf = (wavelength / (2 * np.pi)) * T / (l_f + l_i) / normalization
@@ -226,7 +265,7 @@ def ave_vf(alpha_fc_deg, footprint_mm, energy_eV, alpha_i_deg, Ddet_mm):
     alpha_fc = alpha_fc[np.newaxis, :] if alpha_fc.ndim == 1 else alpha_fc
 
     # Broadcast offsets with alpha_fc
-    offset_grid, alpha_grid = np.meshgrid(offsets.squeeze(), alpha_fc.squeeze(), indexing='ij')
+    offset_grid, alpha_grid = np.meshgrid(offsets.squeeze(), alpha_fc.squeeze(), indexing="ij")
     alpha_f_rad = np.arctan((Ddet_mm * np.tan(np.radians(alpha_grid))) / (Ddet_mm - offset_grid))
     alpha_f_deg = np.degrees(alpha_f_rad)
     vf_vals = vineyard_factor(alpha_f_deg, energy_eV, alpha_i_deg)

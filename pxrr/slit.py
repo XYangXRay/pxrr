@@ -1,6 +1,19 @@
-from pxrr.data_io import load_data, load_metadata, binning_GIXOS_data, remove_negative_2theta, real_space_2theta, GIXOS_data_plot_prep, GIXOS_RF_and_SF, rect_slit_function, conversion_to_reflectivity, GIXOS_file_output
+from pxrr.data_io import (
+    GIXOS_data_plot_prep,
+    GIXOS_file_output,
+    GIXOS_RF_and_SF,
+    binning_GIXOS_data,
+    conversion_to_reflectivity,
+    load_data,
+    load_metadata,
+    real_space_2theta,
+    rect_slit_function,
+    remove_negative_2theta,
+)
 from pxrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
-def rect_slit_wrapper(metadata_file='./testing_data/gixos_metadata.yaml'):
+
+
+def rect_slit_wrapper(metadata_file="./testing_data/gixos_metadata.yaml"):
     importGIXOSdata, importbkg = load_data(metadata_file)
     metadata = load_metadata(metadata_file)
     importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
