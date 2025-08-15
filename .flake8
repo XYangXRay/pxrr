@@ -5,7 +5,7 @@ exclude =
     build,
     dist,
     versioneer.py,
-    pseudo_xrr/_version.py,
+    pxrr/_version.py,
     docs/source/conf.py
 max-line-length = 115
 # Ignore some style 'errors' produced while formatting by 'black'

@@ -1,6 +1,6 @@
 [run]
 source =
-    pseudo_xrr
+    pxrr
 [report]
 omit =
     */python?.?/*

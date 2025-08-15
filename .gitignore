@@ -83,3 +83,7 @@ target/
 
 # testing data
 examples/test_data/
+
+# pixi environments
+.pixi
+*.egg-info
