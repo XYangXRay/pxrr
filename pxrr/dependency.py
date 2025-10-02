@@ -1,18 +1,8 @@
 import numpy as np
 import copy
 from joblib import Parallel, delayed
-from pxrr.gixos import (
-    binning_GIXOS_data,
-    remove_negative_2theta,
-    calc_film_DS_RRF_integ,
-)
-from pxrr.data_io import (
-    load_data,
-    load_metadata,
-)
-from pxrr.plots import (GIXOS_vs_Qxy_plot, 
-                        GIXOS_vs_Qz_plot, 
-                        dependency_plot)
+from pxrr.gixos import calc_film_DS_RRF_integ
+
 
 
 def create_dependency_models(GIXOS, metadata, DSbetaHW):
@@ -184,79 +174,5 @@ def dependency_real_space_2theta(metadata):
         * np.cos(np.radians(metadata["tth"] / 2))
     )
     return metadata
-
-
-def Qxy_GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step):
-    GIXOS = {
-        "tt": importGIXOSdata["tt"],
-    }
-    DSbetaHW = np.mean(GIXOS["tt"][1:] - GIXOS["tt"][0:-1]) / 2
-    qxy0_idx_arr = np.where(metadata["qxy0"] > metadata["qxy_bkg"])
-    if len(qxy0_idx_arr) == 0:
-        qxy0_idx = len(metadata["qxy0"]) + 1
-    else:
-        qxy0_idx = int(qxy0_idx_arr[0])
-
-    GIXOS["Qxy"] = np.zeros((len(GIXOS["tt"]), qxy0_idx))
-    for idx in range(qxy0_idx):
-        GIXOS["Qxy"][:, idx] = (
-            2
-            * np.pi
-            / metadata["wavelength"]
-            * np.sqrt(
-                (np.cos(np.radians(GIXOS["tt"])) * np.sin(np.radians(metadata["tth"][idx]))) ** 2
-                + (
-                    np.cos(np.radians(metadata["alpha_i"]))
-                    - np.cos(np.radians(GIXOS["tt"])) * np.cos(np.radians(metadata["tth"][idx]))
-                )
-                ** 2
-            )
-        )
-    GIXOS["Qz"] = (
-        2
-        * np.pi
-        / metadata["wavelength"]
-        * (np.sin(np.radians(GIXOS["tt"])) + np.sin(np.radians(metadata["alpha_i"])))
-    )
-    GIXOS["GIXOS_raw"] = importGIXOSdata["Intensity"][:, :qxy0_idx]
-    GIXOS["GIXOS_bkg"] = importbkg["Intensity"][:, :qxy0_idx]
-    if qxy0_idx <= len(metadata["qxy0"]):
-        GIXOS_raw_largetth = np.mean(importGIXOSdata["Intensity"][:, qxy0_idx:], axis=1)
-        GIXOS_bkg_largetth = np.mean(importbkg["Intensity"][:, qxy0_idx:], axis=1)
-        bulkbkg = GIXOS_raw_largetth - GIXOS_bkg_largetth
-    else:
-        bulkbkg = np.zeros(len(metadata["qxy0"]), 1)
-
-    fdtt = np.radians(tt_step) / (
-        np.arctan((np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] + metadata["pixel"] / 2) / metadata["Ddet"])
-        - np.arctan(
-            (np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] - metadata["pixel"] / 2) / metadata["Ddet"]
-        )
-    )
-    fdtt = fdtt / fdtt[0]
-    fdtt = fdtt[:, np.newaxis]
-
-    GIXOS["GIXOS"] = (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]) * fdtt - np.mean(bulkbkg[-1 - 10 :], axis=0) * fdtt
-    GIXOS["error"] = (
-        np.sqrt(np.sqrt(np.abs(GIXOS["GIXOS_raw"])) ** 2 + np.sqrt(np.abs(GIXOS["GIXOS_bkg"])) ** 2) * fdtt
-    )
-    GIXOS["bkg"] = 0
-    return (
-        GIXOS,
-        DSbetaHW,
-    ) 
-
-def dependency_wrapper(metadata_file="./testing_data/gixos_metadata.yaml"):
-    importGIXOSdata, importbkg = load_data(metadata_file)
-    metadata = load_metadata(metadata_file)
-    importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
-    importGIXOSdata, importbkg, tt_step = remove_negative_2theta(importGIXOSdata, importbkg)
-    metadata = dependency_real_space_2theta(metadata)
-    GIXOS, DSbetaHW = Qxy_GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step)
-    GIXOS_vs_Qz_plot(GIXOS, metadata)
-    GIXOS_vs_Qxy_plot(GIXOS, metadata)
-    model, assume_model, CWM_model = create_dependency_models(GIXOS, metadata, DSbetaHW)
-    dependency_plot(GIXOS, metadata, model, assume_model, CWM_model)
-    return
 
 

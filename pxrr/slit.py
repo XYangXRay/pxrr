@@ -281,38 +281,7 @@ def rect_slit_function(GIXOS, metadata):
     xrr_config["bkgterm_rect_slit"] = xrr_config["diff_r_bkgoff"]
     return xrr_config
 
-def rectangular_slit(
-    metadata_file="./testing_data/gixos_metadata.yaml",
-):  # can make this a main function to run the whole code and have a parameter be the text file
-    importGIXOSdata, importbkg = load_data(metadata_file)
-    metadata = load_metadata(metadata_file)
-    importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
-    importGIXOSdata, importbkg, tt_step = remove_negative_2theta(importGIXOSdata, importbkg)
-    metadata = real_space_2theta(metadata)
-    GIXOS, DSbetaHW = GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step)
-    GIXOS_data_plot(GIXOS, metadata)
-    GIXOS = GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW)
-    xrr_config = rect_slit_function(GIXOS, metadata)
-    GIXOS = conversion_to_reflectivity(GIXOS, xrr_config)
-    print("xrr_config keys:", xrr_config.keys())
-
-    GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step)
-    R_data_plot(GIXOS, metadata, xrr_config)
-    R_pseudo_data_plot(GIXOS, metadata, xrr_config)
 
 
 
-def rect_slit_wrapper(metadata_file="./testing_data/gixos_metadata.yaml"):
-    importGIXOSdata, importbkg = load_data(metadata_file)
-    metadata = load_metadata(metadata_file)
-    importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
-    importGIXOSdata, importbkg, tt_step = remove_negative_2theta(importGIXOSdata, importbkg)
-    metadata = real_space_2theta(metadata)
-    GIXOS, DSbetaHW = GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step)
-    GIXOS_data_plot(GIXOS, metadata)
-    GIXOS = GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW)
-    xrr_config = rect_slit_function(GIXOS, metadata)
-    xrr_config = conversion_to_reflectivity(GIXOS, xrr_config)
-    GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step)
-    R_data_plot(GIXOS, metadata, xrr_config)
-    R_pseudo_data_plot(GIXOS, metadata, xrr_config)
+

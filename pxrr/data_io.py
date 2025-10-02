@@ -3,6 +3,10 @@ import numpy as np
 import pandas as pd
 import yaml
 
+def load_inputs(metadata_file: str):
+    importGIXOSdata, importbkg = load_data(metadata_file)
+    metadata = load_metadata(metadata_file)
+    return importGIXOSdata, importbkg, metadata
 
 def load_metadata(yaml_path: str):
     """
@@ -135,15 +139,12 @@ def load_data(yaml_path: str):
     # Load metadata
     with open(yaml_path, "r") as f:
         meta = yaml.safe_load(f)
-
-    # Extract parameters
     sample = meta["sample"]
     bkgsample = meta["bkgsample"]
     path = meta["paths"]["path"]
     qxy0 = np.array(meta["qxy0"])
     scan = np.array(meta["scan"], dtype=int)
     bkgscan = np.array(meta["bkgscan"], dtype=int)
-
     importGIXOSdata = None
     importbkg = None
 
@@ -209,7 +210,6 @@ def load_data(yaml_path: str):
     importbkg["tt"] = np.mean(importbkg["tt_qxy0"], axis=1)
 
     return importGIXOSdata, importbkg
-
 
 
 def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
