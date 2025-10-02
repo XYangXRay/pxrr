@@ -1,8 +1,136 @@
 # from data_io import load_metadata, etc., etc. maybe
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
+
+
+def GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step, wide_angle=True):
+    qxy_bkg = 0.3
+    GIXOS = {
+        "tt": importGIXOSdata["tt"],
+        "GIXOS_raw": importGIXOSdata["Intensity"][:, metadata["qxy0_select_idx"]],
+        "GIXOS_bkg": importbkg["Intensity"][:, metadata["qxy0_select_idx"]],
+    }
+    DSbetaHW = np.mean(GIXOS["tt"][1:] - GIXOS["tt"][0:-1]) / 2  # for later use in upcoming functions
+    qxy0_idx = np.where(metadata["qxy0"] > qxy_bkg)
+    qxy0_idx = qxy0_idx[0]
+    if len(qxy0_idx) == 0:
+        qxy0_idx = [len(metadata["qxy0"]) + 1]
+    GIXOS["Qxy"] = (
+        2
+        * np.pi
+        / metadata["wavelength"]
+        * np.sqrt(
+            (np.cos(np.radians(GIXOS["tt"])) * np.sin(np.radians(metadata["tth"]))) ** 2
+            + (
+                np.cos(np.radians(metadata["alpha_i"]))
+                - np.cos(np.radians(GIXOS["tt"])) * np.cos(np.radians(metadata["tth"]))
+            )
+            ** 2
+        )
+    )
+    GIXOS["Qz"] = (
+        2
+        * np.pi
+        / metadata["wavelength"]
+        * (np.sin(np.radians(GIXOS["tt"])) + np.sin(np.radians(metadata["alpha_i"])))
+    )
+    GIXOS["GIXOS_raw"] = importGIXOSdata["Intensity"][:, metadata["qxy0_select_idx"]]
+    GIXOS["GIXOS_bkg"] = importbkg["Intensity"][:, metadata["qxy0_select_idx"]]
+    if qxy0_idx[0] <= len(metadata["qxy0"]):
+        GIXOS["raw_largetth"] = np.mean(importGIXOSdata["Intensity"][:, int(qxy0_idx) :], axis=1)
+        GIXOS["bkg_largetth"] = np.mean(importbkg["Intensity"][:, int(qxy0_idx) :], axis=1)
+        bulkbkg = GIXOS["raw_largetth"] - GIXOS["bkg_largetth"]
+    else:
+        bulkbkg = np.zeros(len(metadata["qxy0"]))
+
+    fdtt = np.radians(tt_step) / (
+        np.arctan((np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] + metadata["pixel"] / 2) / metadata["Ddet"])
+        - np.arctan(
+            (np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] - metadata["pixel"] / 2) / metadata["Ddet"]
+        )
+    )
+    fdtt = fdtt / fdtt[0]
+
+    # add if statement here for no wide angle/wide angle
+    if wide_angle:
+        GIXOS["GIXOS"] = (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]) * fdtt - bulkbkg * fdtt
+        GIXOS["error"] = (
+            np.sqrt(
+                importGIXOSdata["error"][:, metadata["qxy0_select_idx"]] ** 2
+                + importbkg["error"][:, metadata["qxy0_select_idx"]] ** 2
+            )
+            * fdtt
+        )
+    else:
+        GIXOS["GIXOS"] = (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]) * fdtt - np.mean(
+            bulkbkg[-1 - 10 : -1], 1
+        ) * fdtt
+        GIXOS["GIXOS"] = (
+            GIXOS["GIXOS"] - np.mean(GIXOS["GIXOS"][-1 - 5 : -1]) * 0.5
+        )  # GIXOS ["error"] does not exist if we use this, so it will result in errors later; maybe ask Chen?
+
+    return GIXOS, DSbetaHW
+
+def Qxy_GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step):
+    GIXOS = {
+        "tt": importGIXOSdata["tt"],
+    }
+    DSbetaHW = np.mean(GIXOS["tt"][1:] - GIXOS["tt"][0:-1]) / 2
+    qxy0_idx_arr = np.where(metadata["qxy0"] > metadata["qxy_bkg"])
+    if len(qxy0_idx_arr) == 0:
+        qxy0_idx = len(metadata["qxy0"]) + 1
+    else:
+        qxy0_idx = int(qxy0_idx_arr[0])
+
+    GIXOS["Qxy"] = np.zeros((len(GIXOS["tt"]), qxy0_idx))
+    for idx in range(qxy0_idx):
+        GIXOS["Qxy"][:, idx] = (
+            2
+            * np.pi
+            / metadata["wavelength"]
+            * np.sqrt(
+                (np.cos(np.radians(GIXOS["tt"])) * np.sin(np.radians(metadata["tth"][idx]))) ** 2
+                + (
+                    np.cos(np.radians(metadata["alpha_i"]))
+                    - np.cos(np.radians(GIXOS["tt"])) * np.cos(np.radians(metadata["tth"][idx]))
+                )
+                ** 2
+            )
+        )
+    GIXOS["Qz"] = (
+        2
+        * np.pi
+        / metadata["wavelength"]
+        * (np.sin(np.radians(GIXOS["tt"])) + np.sin(np.radians(metadata["alpha_i"])))
+    )
+    GIXOS["GIXOS_raw"] = importGIXOSdata["Intensity"][:, :qxy0_idx]
+    GIXOS["GIXOS_bkg"] = importbkg["Intensity"][:, :qxy0_idx]
+    if qxy0_idx <= len(metadata["qxy0"]):
+        GIXOS_raw_largetth = np.mean(importGIXOSdata["Intensity"][:, qxy0_idx:], axis=1)
+        GIXOS_bkg_largetth = np.mean(importbkg["Intensity"][:, qxy0_idx:], axis=1)
+        bulkbkg = GIXOS_raw_largetth - GIXOS_bkg_largetth
+    else:
+        bulkbkg = np.zeros(len(metadata["qxy0"]), 1)
+
+    fdtt = np.radians(tt_step) / (
+        np.arctan((np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] + metadata["pixel"] / 2) / metadata["Ddet"])
+        - np.arctan(
+            (np.tan(np.radians(GIXOS["tt"])) * metadata["Ddet"] - metadata["pixel"] / 2) / metadata["Ddet"]
+        )
+    )
+    fdtt = fdtt / fdtt[0]
+    fdtt = fdtt[:, np.newaxis]
+
+    GIXOS["GIXOS"] = (GIXOS["GIXOS_raw"] - GIXOS["GIXOS_bkg"]) * fdtt - np.mean(bulkbkg[-1 - 10 :], axis=0) * fdtt
+    GIXOS["error"] = (
+        np.sqrt(np.sqrt(np.abs(GIXOS["GIXOS_raw"])) ** 2 + np.sqrt(np.abs(GIXOS["GIXOS_bkg"])) ** 2) * fdtt
+    )
+    GIXOS["bkg"] = 0
+    return (
+        GIXOS,
+        DSbetaHW,
+    ) 
 
 
 def GIXOS_data_plot(GIXOS, metadata):
