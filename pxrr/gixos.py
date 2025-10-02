@@ -1,20 +1,92 @@
 # ~~~  Chen Shen Functions: ~~~     # can paste functions into a separate py file and import
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
+# import scipy
+import math
 from scipy.constants import Boltzmann as kb
 from scipy.constants import pi
-
-# from numba import njit
-# @jit(nopython=True, parallel=True)  # Use Numba for performance optimization
-from scipy.integrate import (  # ChatGPT contribution to replace the integration with quad for better performance
-    quad,
-    simpson,
-    trapezoid,
-)
+from scipy.integrate import simpson, trapezoid
 from scipy.special import gamma
 from scipy.special import jv as besselj
 from scipy.special import kv as besselk
+
+
+def binning_GIXOS_data(importGIXOSdata, importbkg):
+    binsize = 10
+    groupnumber = math.floor(
+        importGIXOSdata["Intensity"].shape[0] / binsize
+    )  # look at the first row with .shape[0]
+    num_columns = importGIXOSdata["Intensity"].shape[1]
+
+    binneddata = None
+    binnedbkg = None
+
+    for groupidx in range(groupnumber):  # why can't we just round up before if we are adding 1 to it?
+        start = groupidx * binsize
+        end = (groupidx + 1) * binsize
+
+        if binneddata is None:
+            binneddata = {
+                "Intensity": np.zeros((groupnumber, num_columns)),
+                "error": np.zeros((groupnumber, num_columns)),
+                "tt": np.zeros(groupnumber),
+            }
+
+        binneddata["Intensity"][groupidx, :] = np.sum(importGIXOSdata["Intensity"][start:end, :], axis=0)
+        binneddata["error"][groupidx, :] = np.sqrt(np.sum(importGIXOSdata["error"][start:end, :] ** 2, axis=0))
+        binneddata["tt"][groupidx] = np.mean(importGIXOSdata["tt"][start:end])
+
+        if binnedbkg is None:
+            binnedbkg = {
+                "Intensity": np.zeros((groupnumber, num_columns)),
+                "error": np.zeros((groupnumber, num_columns)),
+                "tt": np.zeros((groupnumber, 1)),
+            }
+        binnedbkg["Intensity"][groupidx, :] = np.sum(importbkg["Intensity"][start:end, :], axis=0)
+        binnedbkg["error"][groupidx, :] = np.sqrt(np.sum(importbkg["error"][start:end, :] ** 2, axis=0))
+        binnedbkg["tt"][groupidx, :] = np.mean(
+            importbkg["tt"][start:end], axis=0
+        )  # no [ , :] because would index through all columns but we only have 1 in ["tt"]
+
+    importGIXOSdata = binneddata
+    importbkg = binnedbkg
+    return importGIXOSdata, importbkg
+
+def remove_negative_2theta(importGIXOSdata, importbkg):
+    tt_step = np.mean(
+        importGIXOSdata["tt"][1:] - importGIXOSdata["tt"][0:-1]
+    )  # calculating the step size of tt for future function
+    indices = np.where(importGIXOSdata["tt"] < 0)[0]  # finding indices where value stored is less than 0
+    tt_start_idx = (
+        indices[-1] if len(indices) > 0 else None
+    )  # taking the last  value of indices, and checking if indices is a valid list to take from
+
+    importGIXOSdata["Intensity"] = importGIXOSdata["Intensity"][tt_start_idx + 1 :, :]
+    importGIXOSdata["error"] = importGIXOSdata["error"][tt_start_idx + 1 :, :]
+    importGIXOSdata["tt"] = importGIXOSdata["tt"][tt_start_idx + 1 :]
+    importbkg["Intensity"] = importbkg["Intensity"][tt_start_idx + 1 :, :]
+    importbkg["error"] = importbkg["error"][tt_start_idx + 1 :, :]
+    importbkg["tt"] = importbkg["tt"][
+        tt_start_idx + 1 :
+    ]  # in essence, we are removing the first rows of the data that have negative tt values
+    return importGIXOSdata, importbkg, tt_step
+
+
+def real_space_2theta(metadata):
+    metadata["tth"] = (
+        np.degrees(np.arcsin(metadata["qxy0"][metadata["qxy0_select_idx"]] * metadata["wavelength"] / 4 / np.pi))
+        * 2
+    )  # math.asin would work if not a list
+    metadata["tth_roiHW_real"] = np.degrees(metadata["pixel"] * metadata["DSpxHW"] / metadata["Ddet"])
+    metadata["DSqxyHW_real"] = (
+        np.radians(metadata["tth_roiHW_real"])
+        / 2
+        * 4
+        * np.pi
+        / metadata["wavelength"]
+        * np.cos(np.radians(metadata["tth"] / 2))
+    )
+    return metadata 
 
 
 def film_correlation_integrand_replacement(r, qxy, eta, Lk, amin):  # Changes made
@@ -285,3 +357,82 @@ def GIXOS_Tsqr(Qz_array, Qc, energy_eV, alpha_i_deg, Ddet_mm, footprint_mm):
     Tsqr[:, 2] = alpha_f / alpha_c
     Tsqr[:, 3] = ave_vf(alpha_f, footprint_mm, energy_eV, alpha_i_deg, Ddet_mm)
     return Tsqr
+
+
+def GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW):
+    GIXOS["fresnel"] = GIXOS_fresnel(GIXOS["Qz"], metadata["Qc"])  # check if fresnel == GIXOS_fresnel      SAME
+    GIXOS["Qz_array"] = np.asarray(GIXOS["Qz"]).reshape(
+        -1, 1
+    )  # done to convert GIXOS ["Qz"] from a row vetor to a column vector for GIXOS_Tsqr
+    GIXOS["transmission"] = GIXOS_Tsqr(
+        GIXOS["Qz_array"],
+        metadata["Qc"],
+        metadata["energy"],
+        metadata["alpha_i"],
+        metadata["Ddet"],
+        metadata["footprint"],
+    )  #  Mostly the same, but the 4th column starts to deviate from the MATLAB output by hundredths
+    GIXOS["dQz"] = GIXOS_dQz(
+        GIXOS["Qz"], metadata["energy"], metadata["alpha_i"], metadata["Ddet"], metadata["footprint"]
+    )  # Almost same, just not iterating through enough times(?) --> missing last row      SAME now
+
+    GIXOS["DS_RRF_integ"], GIXOS["DS_term_integ"], GIXOS["RRF_term_integ"] = calc_film_DS_RRF_integ(
+        GIXOS["tt"],
+        metadata["qxy0"][metadata["qxy0_select_idx"]],
+        metadata["energy"] / 1000,
+        metadata["alpha_i"],
+        metadata["RqxyHW"],
+        metadata["DSqxyHW_real"],
+        DSbetaHW,
+        metadata["tension"],
+        metadata["temperature"],
+        metadata["kappa"],
+        metadata["amin"],
+        use_approx=False,
+    )
+    # DS = Diffuse Scatter; RRF = Specular Reflectivity Normalized by Fresnel Reflectivity
+    # Approx form is derived from Taylor expansion, which is dependent on being close to 0 angle --> higher deviations at high angles
+
+    # computes reflectivity
+    GIXOS["refl"] = np.column_stack(
+        [
+            GIXOS["Qz"],
+            GIXOS["GIXOS"] / GIXOS["DS_RRF_integ"] * GIXOS["fresnel"][:, 1] / GIXOS["transmission"][:, 3],
+            GIXOS["error"] / GIXOS["DS_RRF_integ"] * GIXOS["fresnel"][:, 1] / GIXOS["transmission"][:, 3],
+            GIXOS["dQz"][:, 4],
+        ]
+    )
+
+    # computes structure factor
+    GIXOS["SF"] = np.column_stack(
+        [
+            GIXOS["Qz"],
+            GIXOS["GIXOS"] / GIXOS["DS_term_integ"] / GIXOS["transmission"][:, 3],
+            GIXOS["error"] / GIXOS["DS_term_integ"] / GIXOS["transmission"][:, 3],
+            GIXOS["dQz"][:, 4],
+        ]
+    )
+    return GIXOS 
+
+
+def conversion_to_reflectivity(GIXOS, xrr_config):
+    numerator_scaling = xrr_config["Rterm_rect_slit"] - xrr_config["bkgterm_rect_slit"]
+    denominator = GIXOS["DS_term_integ"] * GIXOS["transmission"][:, 3]  # Element-wise multiplication
+
+    GIXOS["refl_recSlit"] = np.column_stack(
+        [
+            GIXOS["Qz"],
+            GIXOS["GIXOS"] * numerator_scaling / denominator,  # off by a bit
+            GIXOS["error"] * numerator_scaling / denominator,  # off by a bit - see how to fix these 2
+            GIXOS["dQz"][
+                :, 4
+            ],  # issues are caused by numerator_scaling for sure (and it is both xrr_config_Rterm_rect_slit and xrr_config_bkgterm_rect_slit)
+        ]
+    )
+
+    GIXOS["refl_roughness_term"] = (xrr_config["Rterm_rect_slit"] - xrr_config["bkgterm_rect_slit"]) / xrr_config[
+        "RF"
+    ]
+    GIXOS["refl_roughness"] = np.sqrt(-np.log(GIXOS["refl_roughness_term"]) / GIXOS["Qz"] ** 2)
+    GIXOS["SF"] = np.column_stack([GIXOS["SF"], GIXOS["refl_roughness"], GIXOS["refl_roughness_term"]])
+    return GIXOS
