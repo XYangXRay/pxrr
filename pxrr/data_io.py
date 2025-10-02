@@ -211,6 +211,126 @@ def load_data(yaml_path: str):
     return importGIXOSdata, importbkg
 
 
+
+def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
+    print(xrr_config)
+    print(xrr_config["slit_v"])
+    xrrfilename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON_TEST.dat"  # becomes "instrument_46392_R_PYTHON.dat" - qz and dqz columns are very accurate, but R and dR start off semi-accurate but increasingly deviate after ~15th value
+    with open(xrrfilename, "w") as f:
+        f.write(f"# files\n")
+        f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(
+            f"background file: {metadata['bkgsample']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n"
+        )
+        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
+        f.write(f"# geometry\n")
+        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
+        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
+        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
+        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
+        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
+        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"beta_step [deg]: {tt_step}\n")
+        f.write(f"# DS-XRR conversion optics setting\n")
+        f.write(f"phi [deg]: {metadata['tth']}\n")
+        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
+        f.write(
+            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
+        )
+        f.write(f"scaling: {metadata['RFscaling']}\n")
+        f.write(f"# DS-XRR conversion sample setting\n")
+        f.write(f"tension [N/m]: {metadata['tension']}\n")
+        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
+        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
+        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
+        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
+        f.write("# data\nqz\tR\tdR\tdqz\n[A^-1]\t[a.u.]\t[a.u.]\t[A^-1]\n")
+
+    # Save reflectivity data
+    with open(xrrfilename, "a") as f:
+        np.savetxt(f, GIXOS["refl_recSlit"], delimiter="\t", fmt="%.6e")
+    #    np.savetxt(f, refl_recSlit, delimiter='\t', fmt='%.6e', comments='', header='', encoding='utf-8', newline='\n', append=True)
+
+    # ---- FILE 2: DS/(R/RF) ----
+    ds2rrf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_DS2RRF_PYTHON_TEST.dat"  # becomes "instrument_46392_DS2RRF_PYTHON.dat" - first column, less than 0.1% error ; if we approx at the same decimal point that MATLAB appears to round off at, would be the same values - second column: starts semi close (less than 0.1% error), but deviates heavily by the end (~x2.5 the actual value it is supposed to have)
+    with open(ds2rrf_filename, "w") as f:
+        f.write(f"# files\n")
+        f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(
+            f"background file: {metadata['bkgsample']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n"
+        )
+        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
+        f.write(f"# geometry\n")
+        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
+        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
+        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
+        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
+        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
+        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"beta_step [deg]: {tt_step}\n")
+        f.write(f"# DS-XRR conversion optics setting\n")
+        f.write(f"phi [deg]: {metadata['tth']}\n")
+        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
+        f.write(
+            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
+        )
+        f.write(f"scaling: {metadata['RFscaling']}\n")
+        f.write(f"# DS-XRR conversion sample setting\n")
+        f.write(f"tension [N/m]: {metadata['tension']}\n")
+        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
+        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
+        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
+        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
+        f.write("# data\nqz\tDS/(R/RF)\n[A^-1]\t[a.u.]\n")
+
+    ds_over_rrf = GIXOS["DS_term_integ"] / (xrr_config["Rterm_rect_slit"] / xrr_config["RF"])
+    with open(ds2rrf_filename, "a") as f:
+        np.savetxt(f, np.column_stack((GIXOS["Qz"], ds_over_rrf)), delimiter="\t", fmt="%.6e")
+    #     np.savetxt(f, np.column_stack((GIXOS["Qz"], ds_over_rrf)), delimiter='\t', fmt='%.6e', comments='', header='', encoding='utf-8', newline='\n', append=True)
+
+    # ---- FILE 3: Structure Factor ----
+    sf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_SF_PYTHON_TEST.dat"  # becomes "instrument_46392_SF_PYTHON.dat" - first four columns are largely accurate; last 2 columns deviate (first is off by ~8%, second is off by a larger margin but both start semi-close and then increasingly deviate as index increases)
+    with open(sf_filename, "w") as f:
+        f.write(f"# pure structure factor and kapa/cw roughness with its decay term under given XRR resolution\n")
+        f.write(
+            f"# files\nsample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n"
+        )
+        f.write(f"background file: {metadata['bkgscan']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
+        f.write(f"# geometry\n")
+        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
+        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
+        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
+        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
+        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
+        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"beta_step [deg]: {tt_step}\n")
+        f.write(f"# DS-XRR conversion optics setting\n")
+        f.write(f"phi [deg]: {metadata['tth']}\n")
+        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
+        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
+        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
+        f.write(
+            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
+        )
+        f.write(f"scaling: {metadata['RFscaling']}\n")
+        f.write(f"# DS-XRR conversion sample setting\n")
+        f.write(f"tension [N/m]: {metadata['tension']}\n")
+        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
+        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
+        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
+        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
+        f.write(
+            "# data\nqz\tSF\tdSF\tdQz\tsigma_R\texp(-qz2sigma2)\n[A^-1]\t[a.u.]\t[a.u.]\t[A^-1]\t[A^-1]\t[a.u.]\n"
+        )
+
+    with open(sf_filename, "a") as f:
+        np.savetxt(f, GIXOS["SF"], delimiter="\t", fmt="%.6e")
+
 # Example usage:
 # importGIXOSdata, importbkg = load_data("metadata.yaml")
 
@@ -705,124 +825,6 @@ def load_data(yaml_path: str):
 #     return GIXOS
 
 
-def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
-    print(xrr_config)
-    print(xrr_config["slit_v"])
-    xrrfilename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_R_PYTHON_TEST.dat"  # becomes "instrument_46392_R_PYTHON.dat" - qz and dqz columns are very accurate, but R and dR start off semi-accurate but increasingly deviate after ~15th value
-    with open(xrrfilename, "w") as f:
-        f.write(f"# files\n")
-        f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(
-            f"background file: {metadata['bkgsample']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n"
-        )
-        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
-        f.write(f"# geometry\n")
-        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
-        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
-        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
-        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
-        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
-        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"beta_step [deg]: {tt_step}\n")
-        f.write(f"# DS-XRR conversion optics setting\n")
-        f.write(f"phi [deg]: {metadata['tth']}\n")
-        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
-        f.write(
-            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
-        )
-        f.write(f"scaling: {metadata['RFscaling']}\n")
-        f.write(f"# DS-XRR conversion sample setting\n")
-        f.write(f"tension [N/m]: {metadata['tension']}\n")
-        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
-        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
-        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
-        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
-        f.write("# data\nqz\tR\tdR\tdqz\n[A^-1]\t[a.u.]\t[a.u.]\t[A^-1]\n")
-
-    # Save reflectivity data
-    with open(xrrfilename, "a") as f:
-        np.savetxt(f, GIXOS["refl_recSlit"], delimiter="\t", fmt="%.6e")
-    #    np.savetxt(f, refl_recSlit, delimiter='\t', fmt='%.6e', comments='', header='', encoding='utf-8', newline='\n', append=True)
-
-    # ---- FILE 2: DS/(R/RF) ----
-    ds2rrf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_DS2RRF_PYTHON_TEST.dat"  # becomes "instrument_46392_DS2RRF_PYTHON.dat" - first column, less than 0.1% error ; if we approx at the same decimal point that MATLAB appears to round off at, would be the same values - second column: starts semi close (less than 0.1% error), but deviates heavily by the end (~x2.5 the actual value it is supposed to have)
-    with open(ds2rrf_filename, "w") as f:
-        f.write(f"# files\n")
-        f.write(f"sample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(
-            f"background file: {metadata['bkgsample']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n"
-        )
-        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
-        f.write(f"# geometry\n")
-        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
-        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
-        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
-        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
-        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
-        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"beta_step [deg]: {tt_step}\n")
-        f.write(f"# DS-XRR conversion optics setting\n")
-        f.write(f"phi [deg]: {metadata['tth']}\n")
-        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
-        f.write(
-            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
-        )
-        f.write(f"scaling: {metadata['RFscaling']}\n")
-        f.write(f"# DS-XRR conversion sample setting\n")
-        f.write(f"tension [N/m]: {metadata['tension']}\n")
-        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
-        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
-        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
-        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
-        f.write("# data\nqz\tDS/(R/RF)\n[A^-1]\t[a.u.]\n")
-
-    ds_over_rrf = GIXOS["DS_term_integ"] / (xrr_config["Rterm_rect_slit"] / xrr_config["RF"])
-    with open(ds2rrf_filename, "a") as f:
-        np.savetxt(f, np.column_stack((GIXOS["Qz"], ds_over_rrf)), delimiter="\t", fmt="%.6e")
-    #     np.savetxt(f, np.column_stack((GIXOS["Qz"], ds_over_rrf)), delimiter='\t', fmt='%.6e', comments='', header='', encoding='utf-8', newline='\n', append=True)
-
-    # ---- FILE 3: Structure Factor ----
-    sf_filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_SF_PYTHON_TEST.dat"  # becomes "instrument_46392_SF_PYTHON.dat" - first four columns are largely accurate; last 2 columns deviate (first is off by ~8%, second is off by a larger margin but both start semi-close and then increasingly deviate as index increases)
-    with open(sf_filename, "w") as f:
-        f.write(f"# pure structure factor and kapa/cw roughness with its decay term under given XRR resolution\n")
-        f.write(
-            f"# files\nsample file: {metadata['sample']}-id{metadata['scan'][ metadata['qxy0_select_idx'] ]}\n"
-        )
-        f.write(f"background file: {metadata['bkgscan']}-id{metadata['bkgscan'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(f"wide angle bkg at qxy0 = {metadata['qxy_bkg']:.6f} /A\n")
-        f.write(f"# geometry\n")
-        f.write(f"energy [eV]: {metadata['energy']:.2f}\n")
-        f.write(f"incidence [deg]: {metadata['alpha_i']}\n")
-        f.write(f"footprint [mm]: {metadata['footprint']:.1f}\n")
-        f.write(f"sdd [mm]: {metadata['Ddet']:.2f}\n")
-        f.write(f"qxy resolution HWHM at specular [A^-1]: {metadata['DSresHW']}\n")
-        f.write(f"phi_opening [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"beta_step [deg]: {tt_step}\n")
-        f.write(f"# DS-XRR conversion optics setting\n")
-        f.write(f"phi [deg]: {metadata['tth']}\n")
-        f.write(f"qxy(beta=0) [A^-1]: {metadata['qxy0'][ metadata['qxy0_select_idx'] ]}\n")
-        f.write(f"phi integration HW [deg]: {metadata['tth_roiHW_real']}\n")
-        f.write(f"corresponding qxy HW [A^-1]: {metadata['DSqxyHW_real']}\n")
-        f.write(
-            f"R slit: {xrr_config['slit_v']} mm (v) {xrr_config['slit_h']} mm (h) at {xrr_config['sdd']} mm distance, {xrr_config['energy']} eV beam energy\n"
-        )
-        f.write(f"scaling: {metadata['RFscaling']}\n")
-        f.write(f"# DS-XRR conversion sample setting\n")
-        f.write(f"tension [N/m]: {metadata['tension']}\n")
-        f.write(f"temperature [K]: {metadata['temperature']:.1f}\n")
-        f.write(f"kappa [kbT]: {metadata['kappa']:.1f}\n")
-        f.write(f"CW short cutoff [A]: {metadata['amin']}\n")
-        f.write(f"CW and Kapa roughness [A]: {GIXOS['refl_roughness'][0]} to {GIXOS['refl_roughness'][-1]}\n")
-        f.write(
-            "# data\nqz\tSF\tdSF\tdQz\tsigma_R\texp(-qz2sigma2)\n[A^-1]\t[a.u.]\t[a.u.]\t[A^-1]\t[A^-1]\t[a.u.]\n"
-        )
-
-    with open(sf_filename, "a") as f:
-        np.savetxt(f, GIXOS["SF"], delimiter="\t", fmt="%.6e")
 
 
 # from pxrr.plots import GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
