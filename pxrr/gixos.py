@@ -182,7 +182,7 @@ def calc_film_DS_RRF_integ(
     kapa,
     amin,
     use_approx=False,
-    show_plot=True,
+    show_plot=False,  # default changed to False
 ):
     qmax = pi / amin
     wavelength = 12.4 / energy
@@ -236,17 +236,8 @@ def calc_film_DS_RRF_integ(
     DS_RRF = DS_term / RRF_term
 
     if show_plot:
-        label_mode = "Approx" if use_approx else "Accurate"
-        plt.figure(figsize=(8, 5))
-        plt.plot(qz_space, DS_RRF / DS_RRF[0], label=f"{label_mode} Qxy₀={qxy0:.3f} Å⁻¹", linewidth=1.5)
-        plt.xlabel(r"$Q_z$ [$\AA^{-1}$]", fontsize=12)
-        plt.ylabel(r"DS / (R/R$_F$)", fontsize=12)
-        plt.xlim(0, 1.2)
-        plt.grid(True)
-        plt.legend(loc="upper left", frameon=False)
-        plt.title(f"GIXOS factor ({label_mode})")
-        plt.tight_layout()
-        plt.show()
+        from pxrr.plots import plot_DS_RRF_factor
+        plot_DS_RRF_factor(qz_space, DS_RRF, qxy0, use_approx)
 
     return DS_RRF, DS_term, RRF_term
 

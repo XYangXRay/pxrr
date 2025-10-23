@@ -5,30 +5,17 @@ from scipy.special import kv as besselk
 from pxrr.gixos import film_integral_delta_beta_delta_phi
 from scipy.integrate import dblquad
 from joblib import Parallel, delayed
-from pxrr.data_io import (
-    GIXOS_file_output,
-    load_data,
-    load_metadata
-    )
-from pxrr.gixos import (GIXOS_RF_and_SF, 
-                        binning_GIXOS_data, 
-                        remove_negative_2theta, 
-                        real_space_2theta, 
-                        conversion_to_reflectivity)
-from pxrr.plots import (GIXOS_data_plot, 
-                        R_data_plot, 
-                        R_pseudo_data_plot, 
-                        GIXOS_data_plot_prep)
 
 def rect_slit_function(GIXOS, metadata):
     xrr_data = pd.read_csv(metadata["path_xrr"] + metadata["xrr_datafile"], delim_whitespace=True)
+    # use metadata values instead of hardcoded defaults
     xrr_config = {
-        "energy": 14400,
-        "sdd": 1039.9,
-        "slit_h": 1,
-        "slit_v": 0.66,
+        "energy": metadata["energy"],
+        "sdd": metadata["sdd"],
+        "slit_h": metadata["slit_h"],
+        "slit_v": metadata["slit_v"],
     }
-
+    
     xrr_config["wavelength"] = 12400 / xrr_config["energy"]
     xrr_config["wave_number"] = 2 * np.pi / xrr_config["wavelength"]
     xrr_config["Qz"] = GIXOS["Qz"]

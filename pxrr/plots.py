@@ -176,8 +176,12 @@ def GIXOS_data_plot(GIXOS, metadata):
 
 
 def R_data_plot(
-    GIXOS, metadata, xrr_config
+    GIXOS, metadata, xrr_config, rf_scaling=None
 ):  # want to have xrr_config be a dict that the xrr_config function will return w/ vars we need
+    """
+    Plot raw reflectivity. If rf_scaling is provided, use it; else fall back to metadata['RFscaling'].
+    """
+    scale = metadata.get("RFscaling", 1.0) if rf_scaling is None else rf_scaling
     GIXOS["refl_recSlit"] = np.array(GIXOS["refl_recSlit"])
 
     # Close any existing figure named 'refl'
@@ -195,8 +199,8 @@ def R_data_plot(
 
     ax.errorbar(
         GIXOS["refl_recSlit"][:, 0],
-        GIXOS["refl_recSlit"][:, 1] / metadata["RFscaling"],
-        yerr=GIXOS["refl_recSlit"][:, 2] / metadata["RFscaling"],
+        GIXOS["refl_recSlit"][:, 1] / scale,
+        yerr=GIXOS["refl_recSlit"][:, 2] / scale,
         fmt="o",
         markersize=5,
         label=(
@@ -222,58 +226,97 @@ def R_data_plot(
     plt.show()
 
 
-def R_pseudo_data_plot(GIXOS, metadata, xrr_config):
-    GIXOS["refl_recSlit"] = np.array(GIXOS["refl_recSlit"])
-    GIXOS["fresnel"] = np.array(GIXOS["fresnel"])
-    xrr_data_data = np.array(metadata["xrr_data"])  # maybe add xrr_data to xrr_config dict
+def R_pseudo_data_plot(GIXOS, metadata, xrr_config, rf_scalings=None, offsets=None):
+    """
+    Plot pseudo reflectivity curves (R/R_F)/scale with optional multiple scalings and vertical offsets.
+    Parameters:
+      rf_scalings: None | scalar | iterable
+        Scaling factors applied after division by Fresnel term.
+        None -> uses [metadata['RFscaling']].
+      offsets: None | scalar | iterable
+        Multiplicative 10**offset applied to each curve (visual separation on log scale).
+        Length must match rf_scalings after normalization. None -> all zeros.
+    """
+    # Normalize scaling list
+    if rf_scalings is None:
+        rf_scalings = [metadata.get("RFscaling", 1.0)]
+    elif np.isscalar(rf_scalings):
+        rf_scalings = [rf_scalings]
+    else:
+        rf_scalings = list(rf_scalings)
 
-    # Close existing figure named 'RRF'
+    # Normalize offsets list
+    if offsets is None:
+        offsets = [0.0] * len(rf_scalings)
+    elif np.isscalar(offsets):
+        offsets = [offsets] * len(rf_scalings)
+    else:
+        offsets = list(offsets)
+        if len(offsets) != len(rf_scalings):
+            raise ValueError("Length of offsets must match length of rf_scalings.")
+
+    GIXOS["refl_recSlit"] = np.asarray(GIXOS["refl_recSlit"])
+    GIXOS["fresnel"] = np.asarray(GIXOS["fresnel"])
+    xrr_data_data = np.asarray(metadata["xrr_data"])
+
+    base_qz = GIXOS["refl_recSlit"][:, 0]
+    base_ref = GIXOS["refl_recSlit"][:, 1] / GIXOS["fresnel"][:, 1]
+    base_err = GIXOS["refl_recSlit"][:, 2] / GIXOS["fresnel"][:, 1]
+
     plt.close("RRF")
-
     fig, ax = plt.subplots(num="RRF", figsize=(6, 5))
     fig.canvas.manager.set_window_title("RRF")
 
-    # Plot first errorbar: refl_recSlit normalized by fresnel and RFscaling
-    ax.errorbar(
-        GIXOS["refl_recSlit"][:, 0],
-        GIXOS["refl_recSlit"][:, 1] / GIXOS["fresnel"][:, 1] / metadata["RFscaling"],
-        yerr=GIXOS["refl_recSlit"][:, 2] / GIXOS["fresnel"][:, 1] / metadata["RFscaling"],
-        fmt="ro",
-        markersize=5,
-        linewidth=1.5,
-        label=(
-            f"slit: {xrr_config['slit_v']:.2f} mm (v) x {xrr_config['slit_h']:.2f} mm (h); "
-            f"{xrr_config['sdd']:.1f} mm, {xrr_config['energy'] / 1000:.1f} keV"
-        ),
-    )
+    marker_cycle = ["ro", "gs", "bd", "k^", "m*", "cX"]
 
-    # Plot second errorbar: xrr_data normalized by dataRF
+    for i, (scale, off) in enumerate(zip(rf_scalings, offsets)):
+        y = base_ref / scale * (10 ** off)
+        yerr = base_err / scale * (10 ** off)
+        ax.errorbar(
+            base_qz,
+            y,
+            yerr=yerr,
+            fmt=marker_cycle[i % len(marker_cycle)],
+            markersize=5,
+            linewidth=1.2,
+            label=(
+                f"Curve {i+1}: /{scale:g} *10^{off:g}; "
+                f"slit {xrr_config['slit_v']:.2f}x{xrr_config['slit_h']:.2f} mm; "
+                f"{xrr_config['sdd']:.0f} mm; {xrr_config['energy']/1000:.1f} keV"
+            ),
+        )
+
+    # Reference XRR data
     ax.errorbar(
         xrr_data_data[:, 0],
         xrr_data_data[:, 1] / xrr_config["dataRF"],
         yerr=xrr_data_data[:, 2] / xrr_config["dataRF"],
         fmt="ko",
         markersize=5,
-        linewidth=1.5,
+        linewidth=1.2,
         capsize=4,
-        label="XRR 0.66mm slit",
+        label="XRR (dataRF norm)",
     )
 
     ax.set_xlim(0, 0.8)
-    ax.set_ylim(1e-5, 10)
+    # Adjust upper y-limit if offsets used
+    ymax_factor = 10 ** (max(offsets) + 1 if offsets else 1)
+    ax.set_ylim(1e-5, ymax_factor)
     ax.set_xlabel(r"$Q_z \; [\AA^{-1}]$", fontsize=14)
     ax.set_ylabel("R/R_F [a.u.]", fontsize=14)
-
     ax.tick_params(axis="both", which="major", labelsize=14, direction="out")
     ax.set_xticks(np.arange(0, 0.81, 0.2))
     ax.set_yscale("log")
-    ax.legend(loc="lower left", frameon=False)  # MATLAB 'SouthWest' ≈ matplotlib 'lower left'
-
+    ax.legend(loc="lower left", frameon=False)
     plt.tight_layout()
 
-    filename = f"{metadata['path_out']}{metadata['sample']}_{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_RRF_PYTHON.jpg"
+    filename = (
+        f"{metadata['path_out']}{metadata['sample']}_"
+        f"{metadata['scan'][ metadata['qxy0_select_idx'] ]:05d}_RRF_multi_PYTHON.jpg"
+    )
     plt.savefig(filename, dpi=300)
     plt.show()
+    return {"rf_scalings": rf_scalings, "offsets": offsets, "file": filename}
 
 
 def GIXOS_vs_Qz_plot(GIXOS, metadata):
@@ -403,3 +446,17 @@ def dependency_plot(GIXOS, metadata, model, assume_model, CWM_model):
     # Save the figure
     filename = f"{metadata['sample']}_{min(metadata['scan']):05d}_{max(metadata['scan']):05d}_Qxy.jpg"
     plt.savefig(os.path.join(metadata["path_out"], filename), dpi=300, bbox_inches="tight")
+
+
+def plot_DS_RRF_factor(qz_space, DS_RRF, qxy0, use_approx):
+    label_mode = "Approx" if use_approx else "Accurate"
+    plt.figure(figsize=(8, 5))
+    plt.plot(qz_space, DS_RRF / DS_RRF[0], label=f"{label_mode} Qxy0={qxy0:.3f} Å⁻¹", linewidth=1.5)
+    plt.xlabel(r"$Q_z$ [$\AA^{-1}$]", fontsize=12)
+    plt.ylabel(r"DS / (R/R$_F$)", fontsize=12)
+    plt.xlim(0, 1.2)
+    plt.grid(True)
+    plt.legend(loc="upper left", frameon=False)
+    plt.title(f"GIXOS factor ({label_mode})")
+    plt.tight_layout()
+    plt.show()

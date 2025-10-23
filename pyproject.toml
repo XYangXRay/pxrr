@@ -78,3 +78,4 @@ lint = "pre-commit run --all-files"
 [tool.pixi.dependencies]
 ipython = "*"
 ipykernel = ">=6.30.1,<7"
+pyfai = ">=2025.3.0,<2026"
