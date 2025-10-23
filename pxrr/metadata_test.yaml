@@ -1,0 +1,95 @@
+# File paths
+paths:
+  path_xrr: C:/nsls2/xf12id1/users/2025-2/317748_Ocko2/XRR_data
+  xrr_datafile: XRR-10mM_CaCl2_pH7p03_100ppm_PFOA_1.txt
+  path: !!python/tuple
+  - C:/nsls2/xf12id1/users/2025-2/317748_Ocko2/PseudoXRR/gixos2
+  path_out: C;/nsls2/xf12id1/users/2025-2/317748_Ocko2/PseudoXRR/processed
+
+# Experimental setup
+energy: 14400
+alpha_i: 0.0728
+Ddet: 670
+pixel: 0.172
+footprint: 10    # corrected from 'fotprint'
+gamma_E: 0.5772156649015329
+Qc: 0.0217
+physical_constants:
+  kb: !!python/tuple
+  - 1.381e-23
+  tension: 0.05
+  temperature: 293
+derived:
+  kappa: !!python/tuple
+  - 3
+  amin: 5
+dependency:
+  qz_selected:
+  - 0.1
+  - 0.3
+  - 0.35
+  - 0.4
+  - 0.6
+  kappa_deviation: 3
+  rho_b: 9.42e-06
+
+# Sample selections
+sample: instrument
+scan:
+- 46392
+- 46394
+- 46396
+- 46398
+- 46400
+bkgsample: instrument
+bkgscan:
+- 46393
+- 46395
+- 46397
+- 46399
+- 46401
+I0ratio_sample2bkg: 1.0
+qxy0:
+- 0.04
+- 0.06
+- 0.1
+- 0.15
+- 0.318
+qxy0_select_idx: 0
+qxy_bkg: 0.3
+RqxyHW: 0.0002
+DSresHW: 0.003
+DSpxHW: 3.5
+
+# Plot settings
+colorset:
+- - 0.0
+  - 0.447
+  - 0.741
+- - 0.85
+  - 0.325
+  - 0.098
+- - 0.929
+  - 0.694
+  - 0.125
+- - 0.494
+  - 0.184
+  - 0.556
+- - 0.466
+  - 0.674
+  - 0.188
+- - 0.301
+  - 0.745
+  - 0.933
+- - 0.635
+  - 0.078
+  - 0.184
+- - 0.0
+  - 0.447
+  - 0.741
+- - 0.85
+  - 0.325
+  - 0.098
+- - 0.929
+  - 0.694
+  - 0.125

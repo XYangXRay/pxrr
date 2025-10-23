@@ -26,6 +26,10 @@ def load_metadata(yaml_path: str):
     Ddet = meta["Ddet"]
     pixel = meta["pixel"]
     footprint = meta["footprint"]
+    # NEW: optional instrument geometry keys
+    sdd = meta.get("sdd", meta.get("Ddet"))          # fallback to Ddet if sdd absent
+    slit_h = meta.get("slit_h", 1)                   # default 1 mm if absent
+    slit_v = meta.get("slit_v", 0.66)                # default 0.66 mm if absent
 
     # Derived directly in original code
     wavelength = 12404 / energy
@@ -41,7 +45,8 @@ def load_metadata(yaml_path: str):
     # Paths and data loading
     path_xrr = meta["paths"]["path_xrr"]
     xrr_datafile = meta["paths"]["xrr_datafile"]
-    xrr_data = pd.read_csv(path_xrr + xrr_datafile, delim_whitespace=True)
+    # REPLACED deprecated delim_whitespace with sep pattern
+    xrr_data = pd.read_csv(path_xrr + xrr_datafile, sep=r"\s+", engine="python")
 
     path = meta["paths"]["path"]
     path_out = meta["paths"]["path_out"]
@@ -94,6 +99,9 @@ def load_metadata(yaml_path: str):
         "Ddet": Ddet,
         "pixel": pixel,
         "footprint": footprint,
+        "sdd": sdd,            # added
+        "slit_h": slit_h,      # added
+        "slit_v": slit_v,      # added
         "wavelength": wavelength,
         "qxy0": qxy0,
         "qxy0_select_idx": qxy0_select_idx,
@@ -125,7 +133,68 @@ def load_metadata(yaml_path: str):
         "assume_kappa": assume_kappa,
         "rho_b": rho_b,
     }
+    
 
+def metadata_update(yaml_path: str,
+                    scope: dict,
+                    write_yaml: bool = True):
+    """
+    Load existing metadata YAML, auto-detect variables in scope, override, and optionally write back.
+    - Handles nested dicts: paths, physical_constants, derived, dependency.
+    - Adds instrument keys if present in scope.
+    """
+    try:
+        with open(yaml_path, "r") as f:
+            metadata = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        metadata = {}
+
+    nested_keys = ["paths", "physical_constants", "derived", "dependency"]
+
+    # Update nested keys
+    for nk in nested_keys:
+        if nk in metadata and isinstance(metadata[nk], dict):
+            for subk in list(metadata[nk].keys()):
+                if subk in scope:
+                    metadata[nk][subk] = scope[subk]
+
+    # Update top-level keys directly if in scope
+    for k in list(metadata.keys()):
+        if k not in nested_keys and k in scope:
+            metadata[k] = scope[k]
+
+    # Add instrument-related or new keys if supplied
+    add_if_present = [
+        "paths", "physical_constants", "derived", "dependency",
+        "sdd", "slit_h", "slit_v", "energy", "Ddet", "pixel", "footprint",
+        "alpha_i", "RqxyHW", "DSresHW", "DSpxHW",
+        "sample", "scan", "bkgsample", "bkgscan",
+        "qxy0", "qxy0_select_idx", "qxy_bkg", "I0ratio_sample2bkg",
+        "amin", "kappa", "kappa_deviation", "rho_b", "qz_selected"
+    ]
+    for k in add_if_present:
+        if k in scope and k not in metadata:
+            metadata[k] = scope[k]
+
+    # Ensure nested dicts exist if their members were added
+    def ensure_nested(parent, members):
+        if parent not in metadata or not isinstance(metadata[parent], dict):
+            metadata[parent] = {}
+        for m in members:
+            if m in scope:
+                metadata[parent][m] = scope[m]
+
+    ensure_nested("paths", ["path_xrr", "xrr_datafile", "path", "path_out"])
+    ensure_nested("physical_constants", ["kb", "tension", "temperature"])
+    ensure_nested("derived", ["kappa", "amin"])
+    ensure_nested("dependency", ["qz_selected", "kappa_deviation", "rho_b"])
+
+    if write_yaml:
+        import os
+        os.makedirs(os.path.dirname(yaml_path), exist_ok=True)
+        with open(yaml_path, "w") as f:
+            yaml.dump(metadata, f, default_flow_style=None, sort_keys=False)
+    return metadata
 
 def load_data(yaml_path: str):
     """
@@ -330,6 +399,25 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 
     with open(sf_filename, "a") as f:
         np.savetxt(f, GIXOS["SF"], delimiter="\t", fmt="%.6e")
+
+def save_pseudo_reflectivity(GIXOS, metadata, filename=None):
+    """
+    Save GIXOS['refl_recSlit'] to <sample>_pseudo_qx.txt (or custom filename)
+    with 4 columns: qz ref dR dqz and header lines.
+    """
+    import os
+    arr = np.asarray(GIXOS["refl_recSlit"])
+    fourcol = np.column_stack([arr[:, 0], arr[:, 1], arr[:, 2], arr[:, 3]])
+    out_dir = metadata.get("path_out", "./")
+    os.makedirs(out_dir, exist_ok=True)
+    sample_name = metadata.get("sample", "sample")
+    if filename is None:
+        filename = f"{sample_name}_pseudo_qx.txt"
+    out_path = os.path.join(out_dir, filename)
+    with open(out_path, "w") as f:
+        f.write("qz ref dR dqz\n[A^-1] [a.u.] [a.u.] [A^-1]\n")
+        np.savetxt(f, fourcol, fmt="%.6e", delimiter=" ")
+    return out_path
 
 # Example usage:
 # importGIXOSdata, importbkg = load_data("metadata.yaml")
@@ -699,7 +787,7 @@ def GIXOS_file_output(GIXOS, xrr_config, metadata, tt_step):
 #         * (1 / metadata["qmax"]) ** xrr_config["eta"]
 #         * np.exp(xrr_config["eta"] * besselk(0, 1 / metadata["Lk"] / metadata["qmax"]))
 #     )
-#     xrr_config["specular_qxy_min"] = xrr_config["RF"] * xrr_config["RRF_term"]  # off by hundredths/thousandths
+#     xrr_config["specular_qxy_min"] = xrr_config["RF"] * xrr_config["RRF_term"]  # off by a bit
 
 #     xrr_config["region_around_radial_u_r"] = np.zeros(
 #         (len(xrr_config["beta_xrr"]), xrr_config["delta_beta_array_for_qxy_slit_min"].shape[1])

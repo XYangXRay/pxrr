@@ -1,31 +1,3 @@
-# files
-sample file: instrument-id46392
-background file: instrument-id46393
-wide angle bkg at qxy0 = 0.300000 /A
-# geometry
-energy [eV]: 14400.00
-incidence [deg]: 0.0728
-footprint [mm]: 10.0
-sdd [mm]: 670.00
-qxy resolution HWHM at specular [A^-1]: 0.003
-phi_opening [deg]: 0.05148068547294859
-beta_step [deg]: 0.14646809148936174
-# DS-XRR conversion optics setting
-phi [deg]: 0.3141973841618452
-qxy(beta=0) [A^-1]: 0.04
-phi integration HW [deg]: 0.05148068547294859
-corresponding qxy HW [A^-1]: 0.006553912802341499
-R slit: 0.66 mm (v) 1 mm (h) at 1039.9 mm distance, 14400 eV beam energy
-scaling: 22.942483292886546
-# DS-XRR conversion sample setting
-tension [N/m]: 0.05
-temperature [K]: 293.0
-kappa [kbT]: 3.0
-CW short cutoff [A]: 5
-CW and Kapa roughness [A]: 3.7579997678156287 to 2.8145079113755886
-# data
-qz	R	dR	dqz
-[A^-1]	[a.u.]	[a.u.]	[A^-1]
 1.632588e-02	1.062462e+01	1.215793e+00	1.053639e-04
 3.505133e-02	8.553371e-01	1.599781e-02	3.849057e-04
 5.377634e-02	8.393245e-02	2.055475e-03	6.644258e-04
