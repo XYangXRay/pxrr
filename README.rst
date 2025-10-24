@@ -2,18 +2,16 @@
 Pseudo XRR
 ==========
 
-.. image:: https://github.com/nsls2/pxrr/actions/workflows/testing.yml/badge.svg
-   :target: https://github.com/nsls2/pxrr/actions/workflows/testing.yml
+.. image:: https://github.com/XYangXRay/pxrr/actions/workflows/testing.yml/badge.svg
+   :target: https://github.com/XYangXRay/pxrr/actions/workflows/testing.yml
 
-
-.. image:: https://img.shields.io/pypi/v/ppxrr.svg
-        :target: https://pypi.python.org/pypi/ppxrr
-
+.. image:: https://img.shields.io/pypi/v/pxrr.svg
+   :target: https://pypi.python.org/pypi/pxrr
 
 Python package for pseudo X-ray reflectivity
 
 * Free software: 3-clause BSD license
-* Documentation: (COMING SOON!) https://nsls2.github.io/pxrr.
+* Documentation: (COMING SOON!) https://xyangxray.github.io/pxrr
 
 Features
 --------
@@ -29,7 +27,7 @@ To install the `pxrr` package in a local development environment, follow these s
 
 .. code-block:: bash
 
-    git clone https://github.com/nsls2/pxrr.git
+    git clone https://github.com/XYangXRay/pxrr.git
     cd pxrr
 
 2. Create the pixi environments (default and 'dev'):
