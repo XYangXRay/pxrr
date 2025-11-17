@@ -16,7 +16,7 @@ Contributors
 * X. Yang (algorithm design, packaging, implementation, UI design)
 * B. Ocko (scientific guidance, validation)
 * C. Shen (testing, bug reports)
-* P. Shafter (code review, CI integration)
+* P. Shafer (code review, CI integration)
 
 Community
 ---------
