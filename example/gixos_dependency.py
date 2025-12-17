@@ -1,23 +1,17 @@
-# from tiled.client import from_profile
-# c = from_profile('opls')
-from tiled.client import from_uri
-cat = from_uri('https://tiled.nsls2.bnl.gov')
-#cat.login()
-c = cat['opls']['raw']
-
-
+from tiled.client import from_profile
+c = from_profile('opls')
 import numpy as np
 import matplotlib.pyplot as plt
 from databroker import Broker
 import copy
 
-import pyFAI.detectors, pyFAI.azimuthalIntegrator
+import pyFAI, pyFAI.detectors, pyFAI.azimuthalIntegrator
 
 def testfunction(a,b):
     c = a+b
     print(c)
 
-def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_dy=2, roi_x = 6.5, pxsize = 172e-6, sdd = 627/1000, image_label = 'pilatus100kA_image'):
+def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_dy=2, roi_x = 6.5, pxsize = 172e-6, sdd = 627/1000, image_label = 'pilatus100k_image'):
     # this is to load 1d line cut from a p100k
     # sample dataset
     db = Broker(c)
