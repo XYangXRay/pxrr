@@ -3,6 +3,8 @@
 Created on Sun Sep 23 17:18:21 2018
 
 @author: Florian
+function
+- read: return [0] motor_positions, [1] column_names, [2] data, [3] header
 """
 
 from __future__ import absolute_import
@@ -14,6 +16,27 @@ import ast
 import re
 
 def read(filename, header_only = False):
+    '''
+
+    Parameters
+    ----------
+    filename : TYPE
+        DESCRIPTION.
+    header_only : TYPE, optional
+        DESCRIPTION. The default is False.
+
+    Returns
+    -------
+    motor_positions : TYPE
+        DESCRIPTION.
+    column_names : TYPE
+        DESCRIPTION.
+    data : TYPE
+        DESCRIPTION.
+    header_info : TYPE
+        DESCRIPTION.
+
+    '''
     
     motor_positions = {}
     
@@ -99,7 +122,7 @@ def read(filename, header_only = False):
                             header_info['ubmatrix'] = matrix
                         elif spl[0].strip().lower() == 'signalcounter':
                             header_info['signalcounter'] = spl[1].strip()
-                        elif not spl[0].strip().find('roi') == -1:
+                        elif not spl[0].strip().find('roi') == -1 and not line.find('None') > 0:
                             thisrois = [float(nr) for nr in spl[1].strip()[1:-1].split(',') ]
                             
                             roi_name = spl[0].split(' ')[1].strip()
@@ -114,6 +137,18 @@ def read(filename, header_only = False):
 
 
                             rois[roi_name] = cur_rois
+                        elif spl[0].strip().lower() == 'scanmode':
+                            header_info['scanmode'] = spl[1].strip()
+                        elif spl[0].strip().lower() == 'title':
+                            header_info['title'] = spl[1].strip()
+                        elif spl[0].strip().lower() == 'sample_name':
+                            header_info['sample_name'] = spl[1].strip()
+                        elif spl[0].strip().lower() == 'chemical_formula':
+                            header_info['chemical_formula'] = spl[1].strip()
+                        elif spl[0].strip().lower() == 'sample_description':
+                            header_info['sample_description'] = spl[1].strip()
+                        elif spl[0].strip().lower() == 'sample_identifier':
+                            header_info['sample_identifier'] = spl[1].strip()
                             
                         
                     except:
@@ -164,7 +199,6 @@ def read(filename, header_only = False):
 
 
 if __name__ == '__main__':
-
     import matplotlib.pyplot as plt
     import cProfile
     

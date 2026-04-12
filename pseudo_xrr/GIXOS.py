@@ -6,27 +6,13 @@ from pseudo_xrr.bulkbkg import *
 from pseudo_xrr.plot import *
 
 '''
-change oct.2025
-author shenc
-(1) load_metadata 
-- use YAML from ruamel.yaml
-    - 1e11 is loaded as str while 1e+11 and 1e-11 are loaded as number in yaml 1.1 that is used by PyYAML
-    - ruamel.yaml uses yaml 1.2 that can cope with the three automatically
-- add datatype: 1d or 2d
-- calculation of HW in the load_metadata already
-(2) import_data changed into import_data_from_meta: 
-- this is for loading data from metadata info.
-- add loading 2d data, with tt and tth axises
-(3) making an import_data jsut for importing 2D and 1D data
-(4) change DS/RRF into roughness factor form
-(5) change the integral of angle from degree to radian and remove the *(pi/180)^2 from the scaling accordingly
-
-
+everything directly related to the GIXOS measurement:
+    - corrections to get R*: geometrical corr, binning (in tt), remove negative
+                             tt angles, bkg correction in different ways
+    - fitting qxy dependence to get bending modulus or predict dependence from
+      assumed modulus value
+    - calculate R, SF from R*
 '''
-
-
-
-        
 
 #%% data processing and correction
 def geometrical_corr(gixs2d, Ddet = 560.7, det_px = 0.075, HWtth = None, HWtt = None):
@@ -295,6 +281,7 @@ def GIXOS_background_corr(
                             bulkbkg_const_qz_lb=None,
                             bulkbkg_offset_lb=0.9,
                             bulkbkg_fit_qz_lb=None,
+                            plot = False,
                         ):
     
     """
@@ -380,6 +367,14 @@ def GIXOS_background_corr(
         `bulkbkg_mode == 0` and `bulkbkg_const_mode == 1`.
         The constant background is estimated from the average intensity
         above this Qz value.
+
+    plot : bool, optional
+        If True, plot raw sample and chamber data, the chamber subtracted data,
+        the bulk bkg, and the bulk subtracted R*
+        If qxy0_select_idx is a list, plot for every qxy0 position will be
+        exported.
+
+        Default is False.
 
     Returns
     -------
@@ -731,7 +726,48 @@ def GIXOS_background_corr(
                 correcteddata["Qz"] = np.delete(correcteddata["Qz"], np.s_[bulk_qxy0_idx], axis=1)
                 correcteddata["Q"] = np.delete(correcteddata["Q"], np.s_[bulk_qxy0_idx], axis=1)
         
-        
+    # ------------------------------------------------------------------------
+    # plot
+    # ------------------------------------------------------------------------
+    if plot:
+        pr = correcteddata["metadata"]["PseudoR"]
+        qsel = pr["qxy0_select_idx"]
+        if np.ndim(qsel) == 0:
+            qsel = np.array([int(qsel)], dtype=int)
+        else:
+            qsel = np.asarray(qsel, dtype=int).ravel()
+
+        if len(qsel) == 1:
+            fig_GIXOS, ax_GIXOS = GIXOS_raw_plot(sampledata,
+                                                 chamberbkg,
+                                                 correcteddata, 
+                                                 metadata=correcteddata["metadata"],
+                                                 selected_pos=0
+                                                 )
+            GIXOSplotname = make_filename(
+                                            correcteddata["metadata"], 
+                                            suffix="GIXOS.png"
+                                            )
+            fig_GIXOS.savefig(GIXOSplotname, dpi=300, bbox_inches="tight")
+        else:
+            # one detailed plot per selected qxy0
+            for isel, qidx in enumerate(qsel):
+                fig_GIXOS, ax_GIXOS = GIXOS_raw_plot(sampledata,
+                                                     chamberbkg,
+                                                     correcteddata,
+                                                     metadata=correcteddata["metadata"],
+                                                     selected_pos=isel, 
+                                                     show=False
+                                                     )
+
+                GIXOSplotname = make_filename(
+                                                correcteddata["metadata"], 
+                                                suffix=f"phi{int(qidx)}_GIXOS.png"
+                                                )
+
+                fig_GIXOS.savefig(GIXOSplotname, dpi=300, bbox_inches="tight")
+
+            
     return correcteddata
        
 
@@ -975,7 +1011,8 @@ def GIXOS_qxy_dependence(
                 temp = temperature,
                 kappa = kappa_value,
                 amin = amin,
-                use_approx=True
+                use_approx=True,
+                eta_max = 1.96
                 )
             
             ds_cols.append(np.asarray(ds_model, dtype=float))
@@ -1090,8 +1127,8 @@ def GIXOS_qxy_dependence(
     return GIXOSdict, results
 
 
-# processing into SF and RRF
-def GIXOS2R(GIXOS, transmission_corr = False, footprint_effect = False, use_approx = False, plot=True):
+#%% processing into SF and RRF
+def GIXOS2R(GIXOS, transmission_corr=False, footprint_effect=False, use_approx=False, plot=True):
     """
     Convert GIXOS intensity into pseudo-reflectivity and structure factor.
 
@@ -1111,6 +1148,41 @@ def GIXOS2R(GIXOS, transmission_corr = False, footprint_effect = False, use_appr
     r_red = Psi_DS / Psi_R using `calc_eCWM_red_r(...)`, then uses it to
     transform the measured diffuse scattering intensity into a pseudo-XRR
     reflectivity and structure factor.
+
+    The selected qxy0 position(s) are taken from
+
+        GIXOS["metadata"]["PseudoR"]["qxy0_select_idx"]
+
+    which may be either:
+
+    - a single integer index, or
+    - a list / array of indices
+
+    Before calculation, the selection is normalized in place.
+
+    If `GIXOS["metadata"]["qxy_bkg"]` exists and is numeric, any selected
+    qxy0 position with
+
+        qxy0 >= GIXOS["metadata"]["qxy_bkg"]
+
+    is removed.
+
+    If `qxy_bkg` is missing or None, no chopping by qxy_bkg is applied.
+
+    The normalized result is written back into
+
+        GIXOS["metadata"]["PseudoR"]["qxy0_select_idx"]
+
+    as either:
+    - an integer, if one index remains
+    - a list of integers, if multiple indices remain
+
+    For multiple selected qxy0 positions, all qxy0 tracks are processed and
+    the qxy0-dependent result fields are stacked along axis 0. In that case:
+
+    - axis 0 corresponds to selected qxy0 position
+    - axis 1 corresponds to beta / Qz point
+    - axis 2 corresponds to the column index for table-like outputs
 
     Parameters
     ----------
@@ -1146,262 +1218,315 @@ def GIXOS2R(GIXOS, transmission_corr = False, footprint_effect = False, use_appr
     plot : bool, optional
         If True, plot the R/RF and R with SF, GIXOS and Psi_R.
 
+        For multiple selected qxy0 positions, the current plotting functions
+        still need updating and are therefore skipped with a message.
+
         Default is True.
         
     Returns
     -------
     GIXOS : dict
-        The input dictionary with additional fields added, including:
-        - "fresnel"
+        The input dictionary with additional fields added.
+
+        Shared fields
+        -------------
+        These do not depend on which qxy0 track is selected:
+        - "Qz_eta2"
         - "talpha_sqr"
         - "tbeta_sqr"
-        - "dQz"
-        - "r_reduced"
-        - "Psi_DS"
-        - "Psi_R"
-        - "prefactor_DS"
-        - "refl"
-        - "SF"
+
+        qxy0-dependent fields
+        ---------------------
+        If one qxy0 is selected, these fields are stored in their original
+        single-track form:
+        - "fresnel"      : (n_beta, 2)
+        - "dQz"          : (n_beta, 5)
+        - "r_reduced"    : (n_beta,)
+        - "Psi_DS"       : (n_beta,)
+        - "Psi_R"        : (n_beta,)
+        - "prefactor_DS" : (n_beta,)
+        - "refl"         : (n_beta, 4)
+        - "SF"           : (n_beta, 4)
+        - "sigma_CW"     : (n_beta,)
+
+        If multiple qxy0 values are selected, these fields are stacked along
+        axis 0:
+        - "fresnel"      : (n_sel, n_beta, 2)
+        - "dQz"          : (n_sel, n_beta, 5)
+        - "r_reduced"    : (n_sel, n_beta)
+        - "Psi_DS"       : (n_sel, n_beta)
+        - "Psi_R"        : (n_sel, n_beta)
+        - "prefactor_DS" : (n_sel, n_beta)
+        - "refl"         : (n_sel, n_beta, 4)
+        - "SF"           : (n_sel, n_beta, 4)
+        - "sigma_CW"     : (n_sel, n_beta)
 
     Notes
     -----
-    The following metadata entries are required for the eCWM conversion:
+    The multiple selected qxy0 tracks are treated independently because their
+    Qz values differ slightly from one qxy0 position to another.
 
-    In GIXOS["metadata"]["instrument"]:
-        - "alpha"   : incident angle in degrees
-        - "energy"  : x-ray energy in eV
-        - "Ddet"    : detector distance in mm (for some corrections)
-        - "footprint" : footprint in mm (if footprint_effect=True)
-
-    In GIXOS["metadata"]["sample_params"]:
-        - "Qc"          : critical Q
-        - "tension"     : surface tension [N/m]
-        - "temperature" : temperature [K]
-        - "kappa"       : bending rigidity [k_B T]
-        - "amin"        : molecular cutoff length [Å]
-
-    In GIXOS["metadata"]["PseudoR"]:
-        - "qxy0_select_idx"
-        - "resolution_mode"
-        - "resolution_HW"
-        - "energy"
-        - "Ddet"
-        - "bkg_mode"
-        - "bkg_off"
-
-    The pseudo-reflectivity and structure factor are derived from the
-    measured diffuse scattering intensity and should be interpreted within
-    the eCWM formalism used here.
+    The transmission correction array `tbeta_sqr` is kept shared because it
+    depends on beta / exit-angle geometry and not on the selected qxy0 index.
     """
-    
-    # ------------------------------------------------------------
-    # Validate required metadata for pseudo-XRR / eCWM conversion
-    # ------------------------------------------------------------
-    if "metadata" not in GIXOS or GIXOS["metadata"] is None:
-        raise ValueError("GIXOS['metadata'] is required.")
+    # -------------------------------------------------------------------------
+    # metadata block checks
+    # -------------------------------------------------------------------------
+    if (
+        "metadata" not in GIXOS
+        or GIXOS["metadata"] is None
+        or "PseudoR" not in GIXOS["metadata"]
+        or GIXOS["metadata"]["PseudoR"] is None
+    ):
+        raise ValueError("GIXOS['metadata']['PseudoR'] is required.")
 
     meta = GIXOS["metadata"]
-
-    for section in ["instrument", "sample_params", "PseudoR"]:
-        if section not in meta or meta[section] is None:
-            raise ValueError(f"GIXOS['metadata']['{section}'] is required.")
-
+    pr = meta["PseudoR"]
     inst = meta["instrument"]
     samp = meta["sample_params"]
+
+    # normalize qxy0 selection in place
+    qsel = normalize_qxy0_select_idx_inplace(GIXOS)
+    meta = GIXOS["metadata"]
     pr = meta["PseudoR"]
 
-    # optional keys that may not exist in metadata
-    pr.setdefault("energy", None)
-    pr.setdefault("Ddet", None)
-    pr.setdefault("bkg_mode", None)
-    pr.setdefault("bkg_off", None)
-
-    # always required in instrument
-    required_instrument = ["alpha", "energy"]
-
-    # always required in sample_params
-    required_sample = ["Qc", "tension", "temperature", "kappa", "amin"]
-
-    # always required in PseudoR
-    required_pseudor = ["qxy0_select_idx", "resolution_mode", "resolution_HW"]
-
-    for key in required_instrument:
-        if key not in inst or inst[key] is None:
-            raise ValueError(f"GIXOS['metadata']['instrument']['{key}'] is required.")
-
-    for key in required_sample:
-        if key not in samp or samp[key] is None:
-            raise ValueError(f"GIXOS['metadata']['sample_params']['{key}'] is required.")
-
-    for key in required_pseudor:
-        if key not in pr or pr[key] is None:
-            raise ValueError(f"GIXOS['metadata']['PseudoR']['{key}'] is required.")
-
-    # integer index check
-    try:
-        pr["qxy0_select_idx"] = int(pr["qxy0_select_idx"])
-    except (TypeError, ValueError):
-        raise ValueError("GIXOS['metadata']['PseudoR']['qxy0_select_idx'] must be an integer.")
-
-    # scalar numeric checks for always-required values
-    scalar_checks = {
-        "instrument.alpha": inst["alpha"],
-        "instrument.energy": inst["energy"],
-        "sample_params.Qc": samp["Qc"],
-        "sample_params.tension": samp["tension"],
-        "sample_params.temperature": samp["temperature"],
-        "sample_params.kappa": samp["kappa"],
-        "sample_params.amin": samp["amin"],
-    }
-
-    for name, value in scalar_checks.items():
-        if np.ndim(value) != 0:
-            raise ValueError(f"{name} must be a scalar.")
-        try:
-            float(value)
-        except (TypeError, ValueError):
-            raise ValueError(f"{name} must be numeric.")
-
-    # ----------------------------------------
-    # PseudoR conditional requirements
-    # ----------------------------------------
+    # scalar / list specific metadata remains supported
     if pr["resolution_mode"] not in (0, 1):
         raise ValueError("GIXOS['metadata']['PseudoR']['resolution_mode'] must be 0 or 1.")
 
-    if pr["bkg_mode"] not in (None, 0, 1):
-        raise ValueError("GIXOS['metadata']['PseudoR']['bkg_mode'] must be None, 0, or 1.")
-
-    # resolution depends on resolution_mode
     if pr["resolution_mode"] == 0:
+        if pr["resolution_HW"] is None:
+            raise ValueError(
+                "GIXOS['metadata']['PseudoR']['resolution_HW'] is required when resolution_mode == 0."
+            )
         if np.ndim(pr["resolution_HW"]) != 0:
             raise ValueError(
-                "For PseudoR resolution_mode == 0, metadata['PseudoR']['resolution_HW'] must be a scalar."
+                "For resolution_mode == 0, GIXOS['metadata']['PseudoR']['resolution_HW'] must be a scalar."
             )
         try:
             pr["resolution_HW"] = float(pr["resolution_HW"])
         except (TypeError, ValueError):
-            raise ValueError("metadata['PseudoR']['resolution_HW'] must be numeric.")
+            raise ValueError(
+                "For resolution_mode == 0, GIXOS['metadata']['PseudoR']['resolution_HW'] must be numeric."
+            )
 
     elif pr["resolution_mode"] == 1:
         if pr["energy"] is None:
             raise ValueError(
-                "metadata['PseudoR']['energy'] is required when resolution_mode == 1."
+                "GIXOS['metadata']['PseudoR']['energy'] is required when resolution_mode == 1."
             )
         if pr["Ddet"] is None:
             raise ValueError(
-                "metadata['PseudoR']['Ddet'] is required when resolution_mode == 1."
+                "GIXOS['metadata']['PseudoR']['Ddet'] is required when resolution_mode == 1."
+            )
+        try:
+            pr["energy"] = float(pr["energy"])
+            pr["Ddet"] = float(pr["Ddet"])
+        except (TypeError, ValueError):
+            raise ValueError(
+                "GIXOS['metadata']['PseudoR']['energy'] and ['Ddet'] must be numeric when resolution_mode == 1."
             )
 
         res = np.asarray(pr["resolution_HW"], dtype=float)
         if res.shape != (2,):
             raise ValueError(
-                "For PseudoR resolution_mode == 1, metadata['PseudoR']['resolution_HW'] must be length 2."
+                "For resolution_mode == 1, GIXOS['metadata']['PseudoR']['resolution_HW'] must be length 2."
             )
         pr["resolution_HW"] = res
 
-        for key in ["energy", "Ddet"]:
-            if np.ndim(pr[key]) != 0:
-                raise ValueError(f"metadata['PseudoR']['{key}'] must be a scalar.")
-            try:
-                pr[key] = float(pr[key])
-            except (TypeError, ValueError):
-                raise ValueError(f"metadata['PseudoR']['{key}'] must be numeric.")
-
-    # background offset only needed when a background mode is used
+    # background offset only needed if off-spec background is used
     if pr["bkg_mode"] in (0, 1):
         if pr["bkg_off"] is None:
             raise ValueError(
-                "metadata['PseudoR']['bkg_off'] is required when bkg_mode is 0 or 1."
+                "GIXOS['metadata']['PseudoR']['bkg_off'] is required when bkg_mode is 0 or 1."
             )
-        if np.ndim(pr["bkg_off"]) != 0:
-            raise ValueError("metadata['PseudoR']['bkg_off'] must be a scalar.")
         try:
             pr["bkg_off"] = float(pr["bkg_off"])
         except (TypeError, ValueError):
-            raise ValueError("metadata['PseudoR']['bkg_off'] must be numeric.")
-    
+            raise ValueError("GIXOS['metadata']['PseudoR']['bkg_off'] must be numeric.")
+
     # -------------------------------------------------------------------------
     # start calculation
     # -------------------------------------------------------------------------
-    
-    # surface scattering optics
-    GIXOS["fresnel"] = calc_fresnel(GIXOS["Qz"][:,pr["qxy0_select_idx"]], samp["Qc"]) 
-    GIXOS["Qz_eta2"] = np.sqrt(2*2*pi*samp["tension"]/kb/samp["temperature"]/10**20)
-    GIXOS["talpha_sqr"] = t_sqr(inst["alpha"], inst["energy"], qc = samp["Qc"])
-    #GIXOS["Qz_array"] = np.asarray(GIXOS ["Qz"]).reshape(-1, 1) # done to convert GIXOS ["Qz"] from a row vetor to a column vector for calc_tbeta_sqr
-    # Qz should always be a column vector!
+    GIXOS["Qz_eta2"] = np.sqrt(2 * 2 * pi * samp["tension"] / kb / samp["temperature"] / 10**20)
+    GIXOS["talpha_sqr"] = t_sqr(inst["alpha"], inst["energy"], qc=samp["Qc"])
+
+    # dQz: qxy0-dependent
     if footprint_effect and ("footprint" in inst) and ("Ddet" in inst) and ("alpha" in inst) and ("energy" in inst):
-        GIXOS["dQz"] = GIXOS_dQz(GIXOS["Qz"][:,pr["qxy0_select_idx"]], inst["energy"], inst["alpha"], inst["Ddet"], inst["footprint"])     # Almost same, just not iterating through enough times(?) --> missing last row      SAME now
+        dQz_all = []
+        for idx in qsel:
+            dQz_i = GIXOS_dQz(
+                GIXOS["Qz"][:, idx],
+                inst["energy"],
+                inst["alpha"],
+                inst["Ddet"],
+                inst["footprint"]
+            )
+            dQz_all.append(np.asarray(dQz_i, dtype=float))
+        dQz_all = np.stack(dQz_all, axis=0)  # (n_sel, n_beta, 5)
     else:
-        GIXOS["dQz"] = np.full((len(GIXOS["tt"]), 5), np.nan)
-        print("No footprint broadending calculation. For calculation: please set footprint_effect = True and provide the footprint [mm], detector distance Ddet [mm], incident angle alpha [deg] and energy [eV] in metadata field")
-        
+        dQz_all = np.full((len(qsel), len(GIXOS["tt"]), 5), np.nan)
+        print(
+            "No footprint broadending calculation. For calculation: please set "
+            "footprint_effect = True and provide the footprint [mm], detector "
+            "distance Ddet [mm], incident angle alpha [deg] and energy [eV] in metadata field"
+        )
+
+    # tbeta_sqr: shared, beta-dependent
     if transmission_corr and ("Ddet" in inst) and ("alpha" in inst) and ("energy" in inst):
         if footprint_effect and ("footprint" in inst):
-            GIXOS["tbeta_sqr"] = calc_tbeta_sqr(GIXOS["tt"], samp["Qc"], inst["energy"], inst["alpha"], inst["Ddet"], inst["footprint"])  #  Mostly the same, but the 4th column starts to deviate from the MATLAB output by hundredths
+            GIXOS["tbeta_sqr"] = calc_tbeta_sqr(
+                GIXOS["tt"], samp["Qc"], inst["energy"], inst["alpha"], inst["Ddet"], inst["footprint"]
+            )
         else:
-            GIXOS["tbeta_sqr"] = calc_tbeta_sqr(GIXOS["tt"], samp["Qc"], inst["energy"], inst["alpha"], inst["Ddet"], 0.1)  #  Mostly the same, but the 4th column starts to deviate from the MATLAB output by hundredths
+            GIXOS["tbeta_sqr"] = calc_tbeta_sqr(
+                GIXOS["tt"], samp["Qc"], inst["energy"], inst["alpha"], inst["Ddet"], 0.1
+            )
     else:
-        GIXOS["tbeta_sqr"] = np.ones((len(GIXOS["tt"]),4))
-        print("no beta transmission correction. For correction: please set the transmission_corr = True and provide the detector distance Ddet [mm], incident angle alpha [deg] and energy [eV] in metadata field")
-    
-    if len(GIXOS["HWtt"])>1:
-        DSbetaHW = GIXOS["HWtt"][pr["qxy0_select_idx"]]
-        DSphiHW = GIXOS["HWtth"][0,pr["qxy0_select_idx"]]
+        GIXOS["tbeta_sqr"] = np.ones((len(GIXOS["tt"]), 4))
+        print(
+            "no beta transmission correction. For correction: please set the "
+            "transmission_corr = True and provide the detector distance Ddet [mm], "
+            "incident angle alpha [deg] and energy [eV] in metadata field"
+        )
+
+    # -------------------------------------------------------------------------
+    # per-qxy0 calculation
+    # -------------------------------------------------------------------------
+    fresnel_all = []
+    rred_all = []
+    psi_ds_all = []
+    psi_r_all = []
+    pref_all = []
+    refl_all = []
+    sf_all = []
+    sigma_all = []
+
+    for isel, idx in enumerate(qsel):
+        # DS widths
+        if len(GIXOS["HWtt"]) > 1:
+            DSbetaHW = GIXOS["HWtt"][idx]
+            DSphiHW = GIXOS["HWtth"][0, idx]
+        else:
+            DSbetaHW = GIXOS["HWtt"][0]
+            DSphiHW = GIXOS["HWtth"][0, 0]
+
+        qz_i = np.asarray(GIXOS["Qz"][:, idx], dtype=float)
+        inten_i = np.asarray(GIXOS["Intensity"][:, idx], dtype=float)
+        err_i = np.asarray(GIXOS["error"][:, idx], dtype=float)
+        tth_i = float(GIXOS["tth"][0, idx])
+
+        fresnel_i = calc_fresnel(qz_i, samp["Qc"])
+
+        rred_i, psi_ds_i, psi_r_i = calc_eCWM_red_r(
+            GIXOS["tt"],
+            tth_i,
+            alpha=inst["alpha"],
+            energy=inst["energy"],
+            DSphi_HWHM=DSphiHW,
+            DSbeta_HWHM=DSbetaHW,
+            R_resolution_mode=pr["resolution_mode"],
+            R_resolution=pr["resolution_HW"],
+            R_energy=pr["energy"],
+            R_sdd=pr["Ddet"],
+            R_bkg_mode=pr["bkg_mode"],
+            R_bkg_off=pr["bkg_off"],
+            tension=samp["tension"],
+            temp=samp["temperature"],
+            kappa=samp["kappa"],
+            amin=samp["amin"],
+            use_approx=use_approx,
+            eta_max = 1.96
+        )
+
+        pref_i = samp["Qc"]**4 * GIXOS["talpha_sqr"] * GIXOS["tbeta_sqr"][:, 3] / (2 * qz_i) ** 4
+
+        refl_i = np.column_stack([
+            qz_i,
+            inten_i / rred_i * fresnel_i[:, 1] / pref_i / meta["I0"],
+            err_i / rred_i * fresnel_i[:, 1] / pref_i / meta["I0"],
+            dQz_all[isel, :, 4]
+        ])
+
+        sigma_i = np.sqrt(-np.log(psi_r_i) / (qz_i ** 2))
+
+        sf_i = np.column_stack([
+            qz_i,
+            inten_i / psi_ds_i / pref_i / meta["I0"],
+            err_i / psi_ds_i / pref_i / meta["I0"],
+            dQz_all[isel, :, 4]
+        ])
+
+        fresnel_all.append(np.asarray(fresnel_i, dtype=float))
+        rred_all.append(np.asarray(rred_i, dtype=float))
+        psi_ds_all.append(np.asarray(psi_ds_i, dtype=float))
+        psi_r_all.append(np.asarray(psi_r_i, dtype=float))
+        pref_all.append(np.asarray(pref_i, dtype=float))
+        refl_all.append(np.asarray(refl_i, dtype=float))
+        sf_all.append(np.asarray(sf_i, dtype=float))
+        sigma_all.append(np.asarray(sigma_i, dtype=float))
+
+    # -------------------------------------------------------------------------
+    # store back: preserve old shape for single selection
+    # -------------------------------------------------------------------------
+    if len(qsel) == 1:
+        GIXOS["fresnel"] = fresnel_all[0]
+        GIXOS["dQz"] = dQz_all[0]
+        GIXOS["r_reduced"] = rred_all[0]
+        GIXOS["Psi_DS"] = psi_ds_all[0]
+        GIXOS["Psi_R"] = psi_r_all[0]
+        GIXOS["prefactor_DS"] = pref_all[0]
+        GIXOS["refl"] = refl_all[0]
+        GIXOS["SF"] = sf_all[0]
+        GIXOS["sigma_CW"] = sigma_all[0]
     else:
-        DSbetaHW = GIXOS["HWtt"][0]
-        DSphiHW = GIXOS["HWtth"][0,0]
-    
-    GIXOS["r_reduced"], GIXOS["Psi_DS"], GIXOS["Psi_R"] = calc_eCWM_red_r(
-                                                                            GIXOS["tt"], 
-                                                                            GIXOS["tth"][0,pr["qxy0_select_idx"]], 
-                                                                            alpha = inst["alpha"], 
-                                                                            energy = inst["energy"], 
-                                                                            DSphi_HWHM = DSphiHW, 
-                                                                            DSbeta_HWHM = DSbetaHW, 
-                                                                            R_resolution_mode = pr["resolution_mode"], 
-                                                                            R_resolution = pr["resolution_HW"], 
-                                                                            R_energy = pr["energy"], 
-                                                                            R_sdd = pr["Ddet"], 
-                                                                            R_bkg_mode = pr['bkg_mode'], 
-                                                                            R_bkg_off = pr['bkg_off'], 
-                                                                            tension = samp["tension"], 
-                                                                            temp = samp["temperature"], 
-                                                                            kappa = samp["kappa"], 
-                                                                            amin = samp["amin"], 
-                                                                            use_approx=use_approx
-                                                                            )    
-    
-    # prefactor for this qxy0
-    GIXOS['prefactor_DS'] = samp["Qc"]**4 * GIXOS["talpha_sqr"] * GIXOS["tbeta_sqr"][:, 3] / (2*GIXOS["Qz"][:,pr["qxy0_select_idx"]])**4 
-    
-    # computes reflectivity
-    GIXOS["refl"] = np.column_stack([
-        GIXOS["Qz"][:,pr["qxy0_select_idx"]],
-        GIXOS["Intensity"][:,pr["qxy0_select_idx"]] / GIXOS["r_reduced"] * GIXOS["fresnel"][:, 1] / GIXOS["prefactor_DS"] / GIXOS["metadata"]["I0"],
-        GIXOS["error"][:,pr["qxy0_select_idx"]] / GIXOS["r_reduced"] * GIXOS["fresnel"][:, 1] / GIXOS["prefactor_DS"] / GIXOS["metadata"]["I0"],
-        GIXOS["dQz"][:, 4]
-    ])
-    
-    # computes roughness under the resolution
-    GIXOS["sigma_CW"] = np.sqrt(-np.log(GIXOS["Psi_R"])/(GIXOS["Qz"][:,pr["qxy0_select_idx"]])**2)
-    
-    # computes structure factor 
-    GIXOS["SF"] = np.column_stack([
-        GIXOS["Qz"][:,pr["qxy0_select_idx"]],
-        GIXOS["Intensity"][:,pr["qxy0_select_idx"]] / GIXOS["Psi_DS"] / GIXOS["prefactor_DS"] / GIXOS["metadata"]["I0"],
-        GIXOS["error"][:,pr["qxy0_select_idx"]] / GIXOS["Psi_DS"] / GIXOS["prefactor_DS"] / GIXOS["metadata"]["I0"],
-        GIXOS["dQz"][:, 4]
-    ])
-    
-    # ---- plot once ----
+        GIXOS["fresnel"] = np.stack(fresnel_all, axis=0)
+        GIXOS["dQz"] = dQz_all
+        GIXOS["r_reduced"] = np.stack(rred_all, axis=0)
+        GIXOS["Psi_DS"] = np.stack(psi_ds_all, axis=0)
+        GIXOS["Psi_R"] = np.stack(psi_r_all, axis=0)
+        GIXOS["prefactor_DS"] = np.stack(pref_all, axis=0)
+        GIXOS["refl"] = np.stack(refl_all, axis=0)
+        GIXOS["SF"] = np.stack(sf_all, axis=0)
+        GIXOS["sigma_CW"] = np.stack(sigma_all, axis=0)
+
+    # -------------------------------------------------------------------------
+    # plot
+    # -------------------------------------------------------------------------
     if plot:
-        fig_RRF, ax_RRF = GIXOS_RRF_plot(GIXOS)
-        fig_R, ax_R = GIXOS_R_plot(GIXOS)
-        RRFplotname = make_filename(GIXOS["metadata"], suffix="RRF.png")
-        Rplotname = make_filename(GIXOS["metadata"], suffix="R.png")
-        fig_RRF.savefig(RRFplotname, dpi=300, bbox_inches="tight")
-        fig_R.savefig(Rplotname, dpi=300, bbox_inches="tight")
-    
-    
-    return GIXOS # outputs GIXOS with reflectivity and structure factor added as new columns
+        pr = GIXOS["metadata"]["PseudoR"]
+        qsel = pr["qxy0_select_idx"]
+        if np.ndim(qsel) == 0:
+            qsel = np.array([int(qsel)], dtype=int)
+        else:
+            qsel = np.asarray(qsel, dtype=int).ravel()
+
+        if len(qsel) == 1:
+            fig_RRF, ax_RRF = GIXOS_RRF_plot(GIXOS, selected_pos=0)
+            fig_R, ax_R = GIXOS_R_plot(GIXOS)
+            RRFplotname = make_filename(GIXOS["metadata"], suffix="RRF.png")
+            Rplotname = make_filename(GIXOS["metadata"], suffix="R.png")
+            fig_RRF.savefig(RRFplotname, dpi=300, bbox_inches="tight")
+            fig_R.savefig(Rplotname, dpi=300, bbox_inches="tight")
+        else:
+            # one detailed plot per selected qxy0
+            for isel, qidx in enumerate(qsel):
+                fig_RRF, ax_RRF = GIXOS_RRF_plot(GIXOS, selected_pos=isel, show=False)
+                fig_R, ax_R = GIXOS_R_plot(GIXOS, selected_pos=isel, show=False)
+
+                RRFplotname = make_filename(
+                    GIXOS["metadata"], suffix=f"phi{int(qidx)}_RRF.png"
+                )
+                Rplotname = make_filename(
+                    GIXOS["metadata"], suffix=f"phi{int(qidx)}_R.png"
+                )
+
+                fig_RRF.savefig(RRFplotname, dpi=300, bbox_inches="tight")
+                fig_R.savefig(Rplotname, dpi=300, bbox_inches="tight")
+
+            # one combined RRF plot with all selected qxy0
+            fig_RRF_multi, ax_RRF_multi = GIXOS_RRF_multi_plot(GIXOS, show=False)
+            RRFmultiname = make_filename(GIXOS["metadata"], suffix="RRF.png")
+            fig_RRF_multi.savefig(RRFmultiname, dpi=300, bbox_inches="tight")
+
+    return GIXOS

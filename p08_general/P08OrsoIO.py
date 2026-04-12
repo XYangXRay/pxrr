@@ -11,7 +11,8 @@ from orsopy.fileio import Polarization, Reduction, Software
 from xray_general_io.OrsoIO import OrsoIO
 from p08_general.metadata_reader import load_beamtime_metadata
 import p08_general.fio_reader as fio_reader
-from p08_general.P08ScanTools import Scan, ScanAnalyzer
+from p08_general.P08ScanTools import Scan
+from p08_general.fsScanTools import ScanAnalyzer
 
 
 class P08OrsoIO(OrsoIO):

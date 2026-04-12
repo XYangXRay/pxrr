@@ -3,6 +3,9 @@
 Created on Tue Mar 31 12:25:50 2026
 
 @author: shenc
+
+general helper functions (some specific ones are in the respective modules)
+
 """
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedSeq
@@ -103,6 +106,15 @@ def set_flow_style_lists(meta):
         if "bkgscan" in meta["measurements"] and isinstance(meta["measurements"]["bkgscan"], list):
             meta["measurements"]["bkgscan"] = _to_flow_seq(meta["measurements"]["bkgscan"])
 
+    # PseudoR.qxy0_select_idx
+    if (
+        "PseudoR" in meta
+        and isinstance(meta["PseudoR"], dict)
+        and "qxy0_select_idx" in meta["PseudoR"]
+        and isinstance(meta["PseudoR"]["qxy0_select_idx"], list)
+    ):
+        meta["PseudoR"]["qxy0_select_idx"] = _to_flow_seq(meta["PseudoR"]["qxy0_select_idx"])
+        
     # dependency.qz_selected
     if (
         "dependency" in meta
@@ -122,6 +134,85 @@ def set_flow_style_lists(meta):
         meta["PseudoR"]["resolution_HW"] = _to_flow_seq(meta["PseudoR"]["resolution_HW"])
 
     return meta
+
+def normalize_qxy0_select_idx_inplace(GIXOS):
+    """
+    Normalize metadata['PseudoR']['qxy0_select_idx'] in place.
+
+    Supports either:
+    - a scalar integer index
+    - a list / array of indices
+
+    If metadata['qxy_bkg'] exists and is numeric, any selected qxy0 position
+    with qxy0 >= qxy_bkg is removed. If metadata['qxy_bkg'] is missing or None,
+    no chopping is applied.
+
+    Parameters
+    ----------
+    GIXOS : dict
+        GIXOS dictionary containing metadata['PseudoR'] and metadata['qxy0'].
+
+    Returns
+    -------
+    qsel : np.ndarray
+        1D integer array of the retained selected qxy0 indices.
+
+    Notes
+    -----
+    The normalized selection is written back into:
+
+        GIXOS["metadata"]["PseudoR"]["qxy0_select_idx"]
+
+    as a scalar integer if one index remains, or as a list of integers if
+    multiple indices remain.
+    """
+    meta = GIXOS["metadata"]
+    pr = meta["PseudoR"]
+
+    if "qxy0_select_idx" not in pr or pr["qxy0_select_idx"] is None:
+        raise ValueError("metadata['PseudoR']['qxy0_select_idx'] is required.")
+
+    qsel_raw = pr["qxy0_select_idx"]
+
+    if np.ndim(qsel_raw) == 0:
+        qsel = np.array([int(qsel_raw)], dtype=int)
+    else:
+        qsel = np.asarray(qsel_raw, dtype=int).ravel()
+
+    if qsel.size == 0:
+        raise ValueError("metadata['PseudoR']['qxy0_select_idx'] must not be empty.")
+
+    qxy0_all = np.asarray(meta["qxy0"], dtype=float).ravel()
+    ncols = len(qxy0_all)
+
+    if np.any(qsel < 0) or np.any(qsel >= ncols):
+        raise ValueError(
+            f"metadata['PseudoR']['qxy0_select_idx'] contains index outside 0..{ncols-1}."
+        )
+
+    # only chop by qxy_bkg if it actually exists
+    qxy_bkg = meta.get("qxy_bkg", None)
+    if qxy_bkg is not None:
+        try:
+            qxy_bkg = float(qxy_bkg)
+            keep_mask = qxy0_all[qsel] < qxy_bkg
+            qsel = qsel[keep_mask]
+        except (TypeError, ValueError):
+            raise ValueError("metadata['qxy_bkg'] must be numeric if provided.")
+
+        if qsel.size == 0:
+            raise ValueError(
+                "No selected qxy0 positions remain after filtering with qxy_bkg."
+            )
+
+    # write back normalized form
+    if qsel.size == 1:
+        pr["qxy0_select_idx"] = int(qsel[0])
+    else:
+        pr["qxy0_select_idx"] = qsel.tolist()
+
+    return qsel
+
 
 def make_filename(metadata, suffix=None):
     """

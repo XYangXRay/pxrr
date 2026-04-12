@@ -5,10 +5,8 @@ datatype: "1d gixos"
 geometrical_correction: True
 
 paths:
-  path_xrr: "None"
-  xrr_datafile:
   gixs_path: "U:/external/2024/data/50000395/processed/gixos_processed_opls/"         
-  path_out: "D:/github/XYangXRay-pxrr/example/testing_data/output/"
+  path_out: "D:/github/XYangXRay-pxrr/example/testing_data/output/12id/"
 
 measurements:
     sample:      "instrument"
@@ -31,7 +29,7 @@ qxy0: [0.04,0.05,0.06,0.08,0.1,0.15]
 DSpxHW:  3.5
 
 PseudoR:
-    qxy0_select_idx: 0
+    qxy0_select_idx: [0,1]
     # resolution_mode 0: circular size [1/A], 1: slit, size [mm]
     resolution_mode: 1      #
     resolution_HW:  [0.33,0.5]  # mode=0: float, mode=1: [v_HW, h_HW]

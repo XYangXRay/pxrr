@@ -3,30 +3,28 @@
 Created on Tue Oct 28 16:39:16 2025
 
 @author: shenc
+
+example routine for P08 data (2D GIXS image (angular rebinned from detector image))
+- a series of 1D GIXOS linecuts needs to be extracted and this is executed during data loading
+according to the datatype lable in the yaml file
 """
-# NEED TO HAVE DATA FILES DOWNLOADED AND UPDATE PATHS
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import pi
 from pseudo_xrr.eCWM import *
 from pseudo_xrr.data_io import *
 from pseudo_xrr.GIXOS import *
-from pseudo_xrr.data_io import *
 from pyinstrument import Profiler
-
-#%%
-SF_file = "U:/p08/2023/data/11016139/shared/analysis_version1/pseudoXRR/pseudoXRR2/large2thetaBkg/pp4_edta_a_1_00137_SF.dat"
-R_file = "U:/p08/2023/data/11016139/shared/analysis_version1/pseudoXRR/pseudoXRR2/large2thetaBkg/pp4_edta_a_1_00137_R.dat"
-
-SF_ref = np.loadtxt(SF_file, skiprows=29)
-R_ref = np.loadtxt(R_file, skiprows=28)
 
 #%% directly load data from meta and GIXOS will be automatically extracted:
 # alternatively, load_data, geometrical correction, extract_1dGIXOS, and provide metadata into this field
 GIXOSdata, GIXOSbkg = load_gixos_from_meta('./example/testing_data/gixos-process_config_p08test.yaml') 
 
-#%% from here identical 
-#%%binning in tt
+#%% info
+# from here all meta has entered GIXOSdata and GIXOSbkg in ["metadata"] field
+# yaml file is no longer needed
+#%% corrections
+# binning in tt
 GIXOSdata= binning_GIXOS_tt(GIXOSdata)
 GIXOSbkg= binning_GIXOS_tt(GIXOSbkg)
 #% remove negative 2theta
@@ -35,57 +33,58 @@ GIXOSbkg= remove_negative_2theta(GIXOSbkg)
 #% 2theta to q
 GIXOSdata_q = GIXOS_th2q(GIXOSdata)
 GIXOSbkg_q = GIXOS_th2q(GIXOSbkg)
-#% background subtraction
-GIXOS_ana = GIXOS_background_corr(GIXOSdata_q, GIXOSbkg_q, bulkbkg_mode = 2, bulkbkg_offset_lb=0.9)
+# background subtraction
+GIXOS_ana = GIXOS_background_corr(GIXOSdata_q, GIXOSbkg_q, bulkbkg_mode = 2, bulkbkg_offset_lb=0.9, plot = True)
 
-#%%
-fig_GIXOS, ax_GIXOS = GIXOS_raw_plot(
-    GIXOSdata_q,
-    GIXOSbkg_q,
-    GIXOS_ana,
-    metadata=GIXOS_ana["metadata"],
-    show=False
-)
-
-outfigname = make_filename(GIXOS_ana["metadata"], suffix="GIXOS.png")
-fig_GIXOS.savefig(outfigname, dpi=300, bbox_inches="tight")
-
-#%% export corrected GIXOS
+#%% export corrected GIXOS as h5 file. 
+# This stores all the info + data and can be loaded back to continue
 outgixosfile = make_filename(GIXOS_ana["metadata"], suffix="gixos.h5")
 export_gixos_nxs(GIXOS_ana, outgixosfile)
 
-#%% load back GIXOS
+#%% load back GIXOS that can be used to continue
 GIXOS_back = load_gixos_nxs(outgixosfile)
 
-#%% from here on the operation will directly add results into the original dictionary variable (shared memory)
+#%% info
+# we still use GIXOS_ana insteaded of the loaded back one. The GIXOS_back is only for demo
+# from here on the operation will directly add results into the original dictionary variable (shared memory)
+
 #%% qxy dependence
-_, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_back['metadata']['dependency']['qz_selected'], fit_kappa = True)
+_, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], fit_kappa = True)
 
 #%% processing pseudo
-_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=True, use_approx=True)
+_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=True, use_approx=False)
 
 #%% ---- export configuration ----
+# this gives back the exact yaml file structure but with newly generated values from analysis
+# particularly include the fitted bending modulus
 configfilename = make_filename(GIXOS_ana["metadata"], suffix="cfg.yaml")
 save_metadata_yaml(GIXOS_ana["metadata"], configfilename)
 
 #%% ------export orso -----------------
-jsonfilename = "U:/p08/2023/data/11016139/beamtime-metadata-11016139.json"
-fiofilename = "U:/p08/2023/data/11016139/raw/pp4_edta_a_1_00137.fio"
+# at P08 we can fetch metadata for proposal and instrument from these files
+jsonfilename = "U:/p08/2026/data/11024557/beamtime-metadata-11024557.json"
+fiofilename = "U:/p08/2026/data/11024557/raw/dppc_22degc_00015.fio"
 
-Rfilename = make_filename(GIXOS_ana["metadata"], suffix="R.ort")
-_, dataset1 = export_orso(
+# pseudoreflectivity
+_ = export_orso(
     GIXOS_ana,
     which="refl",
-    exportpath=Rfilename,
     json_path=jsonfilename,
     fio_path=fiofilename,
 )
 
-SFfilename = make_filename(GIXOS_ana["metadata"], suffix="SF.ort")
-_, dataset2 = export_orso(
+# structure factor
+_ = export_orso(
     GIXOS_ana,
     which="SF",
-    exportpath=SFfilename,
+    json_path=jsonfilename,
+    fio_path=fiofilename,
+)
+
+# I0 R* (background subtracted GIXOS)
+_ = export_orso(
+    GIXOS_ana,
+    which="GIXOS",
     json_path=jsonfilename,
     fio_path=fiofilename,
 )
