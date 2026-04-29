@@ -72,6 +72,11 @@ def bulkbkg_fit(
     """
     x = np.asarray(x, dtype=float).ravel()
     y = np.asarray(y, dtype=float).ravel()
+    
+    # --- mask out NaNs / infs ---
+    mask = np.isfinite(x) & np.isfinite(y)
+    x = x[mask]
+    y = y[mask]
 
     if x.size != y.size:
         raise ValueError(f"x and y must have same length; got {x.size} and {y.size}")
