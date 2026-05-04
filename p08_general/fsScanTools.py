@@ -89,7 +89,6 @@ class BaseScan(object):
 
         motor_positions, column_names, data, header_info = fio_reader.read(self.filename)
 
-
         self.scan_name = self.filename.split('/')[-1]
         self.scan_name = self.scan_name.rsplit('.',1)[0]
         self.scan_dir = self.filename.rsplit('/',1)[0]
@@ -155,9 +154,9 @@ class BaseScan(object):
 
         # check which 1D/2D detectors were used during the scan
         self.detectors = []
-
+        
         self._detect_detectors(column_names)
-
+        
         if self.quickscan or self.burstscan:
             self._detect_detectors_from_header()
 
@@ -192,6 +191,7 @@ class BaseScan(object):
         '''
 
         for detector_name in self.detectors:
+            
             detector_data = self._load_detector(detector_name)
 
             if detector_data is None:
@@ -243,6 +243,7 @@ class BaseScan(object):
             raise ValueError("Unknown detector '%s'" % detector_name)
 
         config = self.detector_config[detector_name]
+        #print(config)
         loader = getattr(self, config["loader"])
         loader_kwargs = dict(config.get("loader_kwargs", {}))
 
@@ -273,6 +274,7 @@ class BaseScan(object):
 
         print ("ScanName: %s" % self.scan_name)
         subfolder = self.DETECTOR_CONFIG[detector]["subfolder"]
+        index_column = self.DETECTOR_CONFIG[detector]["index_column"]
 
         if len(self.scan_name.split('.')) == 1:
             folder_name = self.scan_name
@@ -281,7 +283,7 @@ class BaseScan(object):
             folder_part2 = self.scan_name.split('.')[1].rsplit('_',1)[1]
             folder_name = "%s_%s" % (folder_part1, folder_part2)
 
-        eiger_file_path = "%s/%s/%s" % (self.scan_dir, folder_name, eiger_folder)
+        eiger_file_path = "%s/%s/%s" % (self.scan_dir, folder_name, subfolder)
 
         self.eiger_file = "%s/%s_master.h5" % (eiger_file_path, folder_name)
 
@@ -335,7 +337,8 @@ class BaseScan(object):
 
         eiger_idx = None
         try:
-            eiger_idx = self.data["eiger_index"]
+            eiger_idx = self.data[index_column]
+            #print(index_column)
         except:
             print( "no index column for eiger available" )
 
@@ -365,7 +368,7 @@ class BaseScan(object):
         subfolder = self.DETECTOR_CONFIG[detector]["subfolder"]
         
         self.lambda_file = "%s/%s/%s/%s_00000.nxs" % (self.scan_dir, self.scan_name, subfolder, self.scan_name)
-        #print ( "lambda_file: %s" % self.lambda_file)
+        print ( "lambda_file: %s" % self.lambda_file)
 
         nxsfile = h5py.File(self.lambda_file)
         nxsdata = nxsfile.get('/entry/instrument/detector/data')

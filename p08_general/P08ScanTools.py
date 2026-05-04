@@ -7,6 +7,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+#from fsScanTools import BaseScan, ScanAnalyzer, ScanFitter, ScanPlot
+# comment from Chen: did you forget p08_general. ? 
 from p08_general.fsScanTools import BaseScan, ScanAnalyzer, ScanFitter, ScanPlot
 
 
@@ -59,7 +61,7 @@ class Scan(BaseScan):
             "subfolder": "lambda",
             "index_column": "lambda_index",
             "loader": "_load_lambda",
-            "loader_kwargs": {},
+            "loader_kwargs": {"detector": "lambda"},
         },
         "amptek": {
             "type": "Amptek",
