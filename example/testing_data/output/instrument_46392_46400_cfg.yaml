@@ -1,0 +1,46 @@
+facility: NSLS-II/12ID
+datatype: 1d gixos
+geometrical_correction: true
+paths:
+  gixs_path: /Users/benocko/Library/CloudStorage/Dropbox/BNL/python/github/pxrr_chen/example/testing_data/CaCl2_data/
+  path_out: /Users/benocko/Library/CloudStorage/Dropbox/BNL/python/github/pxrr_chen/example/testing_data/output/
+measurements:
+  sample: instrument
+  scan: [46392, 46394, 46396, 46398, 46400]
+  bkgsample: instrument
+  bkgscan: [46393, 46395, 46397, 46399, 46401]
+  flux: 270000000000.0
+  cttime_sample: 1
+  cttime_bkg: 1
+instrument:
+  energy: 14400
+  alpha: 0.0728
+  Ddet: 640.0
+  pixel: 0.172
+  HWtth: 0.0486
+  footprint: 10
+  wavelength: 0.8613888888888889
+qxy0: [0.04, 0.06, 0.1, 0.15, 0.318]
+DSpxHW: 3.5
+PseudoR:
+  qxy0_select_idx: [0, 1, 2, 3]
+  resolution_mode: 1
+  resolution_HW: [0.33, 0.5]
+  energy: 14400.0
+  Ddet: 1039.9
+  bkg_mode: 0
+  bkg_off: 1.0
+sample_params:
+  Qc: 0.0218
+  tension: 0.05
+  temperature: 293
+  kappa: 1.0
+  amin: 5
+  rho_b: 9.454599394374042e-06
+  kappa_err: 0
+  kappa_fit_success:
+dependency:
+  qz_selected: [0.1, 0.15, 0.35]
+  kappa_deviation: 3
+tth: [0.3141973841618452, 0.4712968144114286, 0.7854986276551649, 1.1782594760338996, 2.498063927812411]
+I0: 270000000000.0
