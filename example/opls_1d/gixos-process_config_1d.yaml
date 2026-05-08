@@ -5,14 +5,14 @@ datatype: "1d gixos"
 geometrical_correction: True
 
 paths:
-  gixs_path: "/Users/benocko/Library/CloudStorage/Dropbox/BNL/python/github/pxrr_chen/example/testing_data/CaCl2_data/"         
-  path_out: "/Users/benocko/Library/CloudStorage/Dropbox/BNL/python/github/pxrr_chen/example/testing_data/output/"
+  gixs_path: "/asap3/petra3/gpfs/external/2024/data/50000395/processed/gixos_processed_opls/"         
+  path_out: "../output/opls_1d/"
 
 measurements:
     sample:      "instrument"
-    scan:        [46392, 46394, 46396, 46398, 46400]
+    scan:        [30834, 30836, 30838, 30840, 30842,30844]
     bkgsample:   "instrument"
-    bkgscan:     [46393, 46395, 46397, 46399, 46401]
+    bkgscan:     [30835, 30837, 30839, 30841, 30843,30845]
     flux:          2.7E11 # ct/s
     cttime_sample: 1 # seconds
     cttime_bkg:    1 # seconds
@@ -20,16 +20,16 @@ measurements:
 instrument:
     energy:   14400     # must
     alpha:  0.0728      # must
-    Ddet:     640.0     # optional, for geometrical correction, footprint correction
+    Ddet:     710.0     # optional, for geometrical correction, footprint correction
     pixel:    0.172     # optional, for geometrical correction
     HWtth:    0.0486     # [deg] optional, mandatory for 1d gixs, half width of the GIXOS pixel in tth
     footprint: 10       # [mm] optional, for footprint correction
 
-qxy0: [0.04, 0.06, 0.1, 0.15, 0.318]
+qxy0: [0.04,0.05,0.06,0.08,0.1,0.15]
 DSpxHW:  3.5
 
 PseudoR:
-    qxy0_select_idx: [0,1,2,3]
+    qxy0_select_idx: [0,1]
     # resolution_mode 0: circular size [1/A], 1: slit, size [mm]
     resolution_mode: 1      #
     resolution_HW:  [0.33,0.5]  # mode=0: float, mode=1: [v_HW, h_HW]
@@ -41,9 +41,9 @@ PseudoR:
 
 sample_params:
     Qc:       0.0218    # critical angle in 1/A
-    tension:     0.050       # N/m
+    tension:     0.028       # N/m
     temperature: 293        # K
-    kappa: 1   # kbT
+    kappa: 20   # kbT
     amin: 5     # molecular distance
 
 dependency:

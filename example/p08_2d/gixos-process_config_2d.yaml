@@ -5,8 +5,8 @@ datatype: "2d gixs"
 geometrical_correction: True
 
 paths:
-  gixs_path: "U:/p08/2026/data/11024557/processed/GID/"         
-  path_out: "D:/github/XYangXRay-pxrr/example/testing_data/output/p08/"
+  gixs_path: "/asap3/petra3/gpfs/p08/2026/data/11024557/processed/GID/"         
+  path_out: "../output/p08_2d/"
 
 measurements:
     sample:      "GID_dppc_22degc"

@@ -1,0 +1,50 @@
+{
+    "applicant": {
+        "email": "chen.shen@desy.de",
+        "institute": "Deutsches Elektronen-Synchrotron",
+        "lastname": "Shen",
+        "userId": "6129",
+        "username": "chenshen"
+    },
+    "beamline": "p08",
+    "beamlineAlias": "P08",
+    "beamlineSetup": "Langmuir trough GID setup (fixed incident liquid surface)",
+    "beamtimeId": "11024557",
+    "contact": "None",
+    "corePath": "/asap3/petra3/gpfs/p08/2026/data/11024557",
+    "eventEnd": "2026-02-06 09:00:00",
+    "eventStart": "2026-02-04 09:00:00",
+    "facility": "PETRA III",
+    "generated": "2026-02-05 14:26:46",
+    "leader": {
+        "email": "",
+        "institute": "",
+        "lastname": "",
+        "userId": "",
+        "username": ""
+    },
+    "pi": {
+        "email": "",
+        "institute": "",
+        "lastname": "",
+        "userId": "",
+        "username": ""
+    },
+    "proposalId": "20010001",
+    "proposalType": "C",
+    "retentionPeriod": "onsite",
+    "title": "",
+    "unixId": "None",
+    "users": {
+        "doorDb": [
+            "shenc",
+            "fbertram",
+            "deyarka",
+            "khadieva",
+            "toberste",
+            "sahapamp"
+        ],
+        "special": [],
+        "unknown": []
+    }
+}

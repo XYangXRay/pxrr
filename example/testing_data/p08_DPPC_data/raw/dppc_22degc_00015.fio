@@ -1,0 +1,231 @@
+!
+! Comments
+!
+%c
+dscan dummymot -1.0 1.0 1 15.0
+user p08user Acquisition started at Thu Feb  5 16:20:16 2026
+!
+! Parameter
+!
+%p
+chemical_formula = DPPC / H2O
+collection_description = OFF
+collection_identifier = -1
+hkl = [-0.5598533877216142, 0.559844437285407, -3.294879971633141]
+rois eiger4m  = [2012, 2010, 2024, 2034, 2033, 2010, 2040, 2034, 2048, 2010, 2053, 2034]
+sample_description = 0.2mM DPPC in chloroform (2024 sample) 350uL deposited on 22degC water surface. 1D microfocus  17uM beam with Eiger2 4M GIWAXS
+sample_name = DPPC monolayer on 22degC H2O subphase
+scanmode = measurement
+signalcounter = eiger4m_roi2
+title = DPPC on water / GIXS incl. GIXOS + GIWAXS in one shot
+ub_matrix = [[ 7.40356451e-01 -7.40357743e-01 -3.65479990e-06]; [ 2.58433154e-06 -2.58433605e-06  1.04702305e+00]; [-7.40357743e-01 -7.40356451e-01  1.24074224e-16]]
+abs = 0
+anav = 5.14532
+atten = 1
+bpm1 = 22
+bpm2 = 44
+bpm3 = 40
+bpm4 = 43
+bsx = 0
+bsz = 0
+c2_para = 79.6402
+c2_perp = 10.5924
+c2_pitch = 0.0804948
+c2_roll = 0.163291
+c2_tblpitch = 79.9633
+cbsx = 5
+cbsz = 0
+chi = -89.9999
+chis = -0.1
+dcm_bragg = 7.5763
+dummymot = 0
+elensh = -6.43438
+elenspitch = -0.0360625
+elensv = -0.015595
+elensy = -20
+elensyaw = -4.75244
+energyfmb = 14995.4
+exp_dac01 = 0
+exp_dac02 = 0
+exp_dac03 = 0
+exp_dac04 = 0
+exp_dmy01 = 0
+exp_dmy02 = 0
+exp_dmy03 = 0
+exp_mot06 = 0.5
+exp_mot14 = 1.1
+exp_mot21 = 0
+exp_mot27 = 54.5
+exp_mot43 = 0
+exp_mot47 = 290
+exp_mot48 = -40
+exp_mot74 = -7.299
+exp_mot80 = 0.451
+fabs01 = 4.6
+fabs02 = -1
+fabs03 = -1
+fabs04 = -1
+fabs05 = -1
+fdy = 17.2881
+fdz = 7.94965
+frot = 0
+ftilt = -1.56975
+fts_gap = 6.2725
+fts_trans = 5
+fzs = 3.41844
+gap = 12.153
+gid_det_tth = -50
+gid_det_z = -0.1
+gid_soller_yaw = -0.122633
+goni_lat = 21
+goni_yaw = 0
+gonil = -0.23
+goniu = 0.195111
+hu_chi = 0.00975
+hu_phi = -0.201
+hu_rot = 0
+jack_1 = 0
+jack_2 = 0
+jack_3 = 0
+laser_x = -9
+laser_y = -3.3435
+laser_z = 5.1315
+lens1dh = 0.373
+lens1dpitch = 0.011
+lens1dv = 1.109
+lens1dyaw = 0.103
+lens_1d = 0
+lens_oh = 32
+lmx = 1.91375
+lmy = 1.25
+lom1lat = 52.6064
+lom1lin = -1185.28
+lom1pitch = 14.0528
+lom1tblperp = 49.9917
+lom1tblpitch = 23.4235
+lom1tblroll = -391.034
+lom2lat = 52.206
+lom2lin = 1176.14
+lom2pitch = 13.9874
+lom2tblperp = 50.0018
+lom2tblpitch = 4.9362
+lom2tblroll = -299.885
+lomfoil = 101
+lomrtclhgt = 20.1
+lomrtcllat = 4.25
+lx15a = 4.9985
+lx15b = 2
+micro_x = 58.998
+micro_y = 0.65
+micro_z = -130.831
+monicam = 2.22045e-16
+monislit = 180
+mytr = 90.058
+olensh = -1.56343
+olenspitch = 0
+olensv = 3.617
+olensyaw = 0.5
+om = -0.034981
+om_real = -0.011559
+oma = 0
+omh = 0
+phic = 0
+phis = 0
+phx = 11.4558
+phz = 32.1595
+psl1v = 0
+psl1vc = -0.011
+psl2l = 0.6
+psl2r = 1.1
+psl2v = 0.7
+psl2vc = -0.16
+sample_revolver = 1
+samx = 27
+samz = -0.0377477
+samz_lb = -0.0377477
+samz_lf = -0.0377477
+samz_r = -0.0377477
+saxs_x = 0
+saxs_z = 16.37
+shx = 0
+sl1h = 0.8
+sl1hc = 0.0600102
+sl1v = 0.2
+sl1vc = -0.0454522
+sl2h = 0.2
+sl2hc = -0.319
+sl2v = 0.6
+sl2vc = 0.51075
+sl3b = 1.62495
+sl3h = 0.6
+sl3hc = -1.13687e-13
+sl3l = 0.3
+sl3r = 0.3
+sl3t = -1.47495
+sl3v = 0.15
+sl3vc = 1.54995
+sl4h = 4
+sl4hc = -6.55163
+sl4v = 4
+sl4vc = 6.10734
+tah1 = -13.11
+tah2 = -11.925
+tavc = -0.38
+tavl = -5.09
+tavr = -4.1428
+tbh1 = -7.45299
+tbh2 = -17.2529
+tbvc = 8.59896
+tbvl = 8.53496
+tbvr = 8.58295
+tby = 395
+trough_a = 20632
+trough_bsx = 0
+trough_p = 35.0004
+trough_phxl = 0.041
+trough_phxu = 5
+trough_phz = 0
+troughz = 6.2
+tt = 27
+tta = 0
+tth = 0
+xc = 0
+xeye_x = 101.016
+xeye_z = -25.1605
+xs = 0
+yc = 0.0001
+ys = 1.5
+yt = 1.098
+zc = 1.0001
+zs = 1.0632
+zt1 = -1.2038
+zt2 = -1.2057
+zt3 = -0.0002
+!
+! Data
+!
+%d
+ Col 1 dummymot DOUBLE
+ Col 2 counting_time DOUBLE
+ Col 3 eiger4m_max DOUBLE
+ Col 4 eiger4m_roi1 DOUBLE
+ Col 5 eiger4m_roi2 DOUBLE
+ Col 6 eiger4m_roi3 DOUBLE
+ Col 7 eiger4m_index DOUBLE
+ Col 8 atten_position DOUBLE
+ Col 9 exp_vfc02 DOUBLE
+ Col 10 petra_beamcurrent DOUBLE
+ Col 11 lom_foil DOUBLE
+ Col 12 bpm2_sum DOUBLE
+ Col 13 ion_bl DOUBLE
+ Col 14 abs_position DOUBLE
+ Col 15 cyber_cts DOUBLE
+ Col 16 trough_area DOUBLE
+ Col 17 trough_pressure DOUBLE
+ Col 18 beckhoff_temp1 DOUBLE
+ Col 19 amptek_roi1 DOUBLE
+ Col 20 epoch DOUBLE
+ Col 21 timestamp DOUBLE
+ -1.0 15.0 493839.0 28350.0 215456.0 26443.0 0.0 1.0 3099534.5 120.74456787109375 2.066303406442915 492158.172991883 1062491.0 0.0 1612455.0 20632.001953125 34.99565505981445 21.5 6795.0 1770304839.0756137 5.000897645950317
+ 1.0 15.0 486115.0 27882.0 218945.0 26658.0 1.0 1.0 3096334.9999999995 120.6633529663086 2.0596893719996907 491819.14144968335 1062152.5 0.0 1611566.0 20631.27734375 34.99867630004883 21.5 6806.0 1770304858.4895577 23.194276809692383
+! Acquisition ended at Thu Feb  5 16:20:58 2026

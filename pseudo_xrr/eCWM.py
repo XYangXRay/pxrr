@@ -22,6 +22,13 @@ everything related to the extended Capillary Wave Model and scattering optics:
 # -------------------------------------------------------------
 ETA_MAX_DEFAULT = 1.96
 
+def _scalar_value(x):
+    """
+    make sure the shape is correct for float(), 
+    needed in numpy>=2.4.* since numpy starts to raise an error
+    """
+    return float(np.asarray(x).reshape(-1)[0])
+    
 def _calc_eta_from_qz(qz, tension, temp):
     """
     Calculate the capillary-wave exponent eta from Qz.
@@ -897,12 +904,22 @@ def calc_eCWM_roughness_factor_SP(
 
         # start evaluating contribution for each beta
         def process_idx_rad(idx):
-            beta_i = np.radians(float(beta[idx])) # the diffPsi_red expects beta and phi in radian
-            alpha_i_deg = float(alpha[idx]) # the function expects alpha in degree
+            beta_i = np.radians(_scalar_value(beta[idx])) # the diffPsi_red expects beta and phi in radian
+            alpha_i_deg = _scalar_value(alpha[idx]) # the function expects alpha in degree
             # reduced differential roughness factor function
-            diff_psi = lambda beta_rad, phi_rad: eCWM_diffPsi_red(
-                beta_rad, phi_rad, kbT_gamma, wave_number, alpha_i_deg, Lk, amin, use_approx = use_approx
-            )
+            def diff_psi(beta_rad, phi_rad):
+                return _scalar_value(
+                    eCWM_diffPsi_red(
+                        beta_rad,
+                        phi_rad,
+                        kbT_gamma,
+                        wave_number,
+                        alpha_i_deg,
+                        Lk,
+                        amin,
+                        use_approx=use_approx,
+                    )
+                )
     
             upper_vals = []
             lower_vals = []
@@ -914,20 +931,20 @@ def calc_eCWM_roughness_factor_SP(
                 # Upper
                 upper, _ = dblquad(
                     lambda phi, beta: diff_psi(beta, phi),
-                    beta_i + np.radians(delta_beta_array_for_qxy_slit_min[idx, phi_idx]),
-                    beta_i + np.radians(delta_beta_HW[idx]),
-                    lambda _: np.radians(phi_array_for_qxy_slit_min[idx, phi_idx]),
-                    lambda _: np.radians(phi_array_for_qxy_slit_min[idx, phi_idx + 1]),
+                    beta_i + np.radians(_scalar_value(delta_beta_array_for_qxy_slit_min[idx, phi_idx])),
+                    beta_i + np.radians(_scalar_value(delta_beta_HW[idx])),
+                    lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx])),
+                    lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx + 1])),
                     epsabs=1e-12, epsrel=1e-10
                 )
                 upper_vals.append(upper*diffPsi_prefactor[idx])
                 # Lower
                 lower, _ = dblquad(
                     lambda phi, beta: diff_psi(beta, phi),
-                    beta_i - np.radians(delta_beta_HW[idx]),
-                    beta_i - np.radians(delta_beta_array_for_qxy_slit_min[idx, phi_idx]),
-                    lambda _: np.radians(phi_array_for_qxy_slit_min[idx, phi_idx]),
-                    lambda _: np.radians(phi_array_for_qxy_slit_min[idx, phi_idx + 1]),
+                    beta_i - np.radians(_scalar_value(delta_beta_HW[idx])),
+                    beta_i - np.radians(_scalar_value(delta_beta_array_for_qxy_slit_min[idx, phi_idx])),
+                    lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx])),
+                    lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx + 1])),
                     epsabs=1e-12, epsrel=1e-10
                 )
                 lower_vals.append(lower*diffPsi_prefactor[idx])
@@ -935,10 +952,10 @@ def calc_eCWM_roughness_factor_SP(
             # the rectangular region outside of the phi max of the qxy circle till the slit edge
             result, _ = dblquad(
                 func=diff_psi,
-                a=np.radians(phi_max_qxy_slit_min[idx]),
-                b=np.radians(delta_phi_HW[idx]),
-                gfun=lambda _: beta_i - np.radians(delta_beta_HW[idx]),
-                hfun=lambda _: beta_i + np.radians(delta_beta_HW[idx]),
+                a=np.radians(_scalar_value(phi_max_qxy_slit_min[idx])),
+                b=np.radians(_scalar_value(delta_phi_HW[idx])),
+                gfun=lambda _: beta_i - np.radians(_scalar_value(delta_beta_HW[idx])),
+                hfun=lambda _: beta_i + np.radians(_scalar_value(delta_beta_HW[idx])),
                 epsabs=1e-8, epsrel=1e-6
             )
             out_i = result*diffPsi_prefactor[idx]
@@ -955,10 +972,10 @@ def calc_eCWM_roughness_factor_SP(
                 print('bkg by offset phi left and right')
                 result2, _ = dblquad(
                     func=diff_psi,
-                    a=np.radians(bkg_phi[idx] - delta_phi_HW[idx]),
-                    b=np.radians(bkg_phi[idx] + delta_phi_HW[idx]),
-                    gfun=lambda _: beta_i - np.radians(delta_beta_HW[idx]),
-                    hfun=lambda _: beta_i + np.radians(delta_beta_HW[idx]),
+                    a=np.radians(_scalar_value(bkg_phi[idx] - delta_phi_HW[idx])),
+                    b=np.radians(_scalar_value(bkg_phi[idx] + delta_phi_HW[idx])),
+                    gfun=lambda _: beta_i - np.radians(_scalar_value(delta_beta_HW[idx])),
+                    hfun=lambda _: beta_i + np.radians(_scalar_value(delta_beta_HW[idx])),
                     epsabs=1e-8, epsrel=1e-6
                 )
                 bkgoff_i = result2*diffPsi_prefactor[idx]
@@ -966,18 +983,18 @@ def calc_eCWM_roughness_factor_SP(
                 print('bkg by offset beta up and down')
                 result2u, _ = dblquad(
                     func=diff_psi,
-                    a= -np.radians(delta_phi_HW[idx]),
-                    b= np.radians(delta_phi_HW[idx]),
-                    gfun=lambda _: np.radians(bkg_beta_u[idx] - delta_beta_HW[idx]),
-                    hfun=lambda _: np.radians(bkg_beta_u[idx] + delta_beta_HW[idx]),
+                    a= -np.radians(_scalar_value(delta_phi_HW[idx])),
+                    b= np.radians(_scalar_value(delta_phi_HW[idx])),
+                    gfun=lambda _: np.radians(_scalar_value(bkg_beta_u[idx] - delta_beta_HW[idx])),
+                    hfun=lambda _: np.radians(_scalar_value(bkg_beta_u[idx] + delta_beta_HW[idx])),
                     epsabs=1e-8, epsrel=1e-6
                 )
                 result2l, _ = dblquad(
                     func=diff_psi,
-                    a= -np.radians(delta_phi_HW[idx]),
-                    b= np.radians(delta_phi_HW[idx]),
-                    gfun=lambda _: np.radians(bkg_beta_l[idx] - delta_beta_HW[idx]),
-                    hfun=lambda _: np.radians(bkg_beta_l[idx] + delta_beta_HW[idx]),
+                    a= -np.radians(_scalar_value(delta_phi_HW[idx])),
+                    b= np.radians(_scalar_value(delta_phi_HW[idx])),
+                    gfun=lambda _: np.radians(_scalar_value(bkg_beta_l[idx] - delta_beta_HW[idx])),
+                    hfun=lambda _: np.radians(_scalar_value(bkg_beta_l[idx] + delta_beta_HW[idx])),
                     epsabs=1e-8, epsrel=1e-6
                 )
                 bkgoff_i = (result2u + result2l)/2 *diffPsi_prefactor[idx]

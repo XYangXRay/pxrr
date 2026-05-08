@@ -13,11 +13,10 @@ from scipy.constants import pi
 from pseudo_xrr.eCWM import *
 from pseudo_xrr.data_io import *
 from pseudo_xrr.GIXOS import *
-from pyinstrument import Profiler
 
 
 #%% directly load data from meta and GIXOS will be automatically extracted:
-GIXOSdata, GIXOSbkg = load_gixos_from_meta('./example/testing_data/gixos-process_config_OPLStest.yaml') 
+GIXOSdata, GIXOSbkg = load_gixos_from_meta('./gixos-process_config_1d.yaml') 
 
 #%% info
 # from here all meta has entered GIXOSdata and GIXOSbkg in ["metadata"] field
@@ -51,7 +50,7 @@ GIXOS_back = load_gixos_nxs(outgixosfile)
 _, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], row_window=3, fit_kappa = True)
 
 #%% processing pseudo
-_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=False, use_approx=False)
+_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=False, use_approx=True)
 
 #%% ---- export configuration ----
 # this gives back the exact yaml file structure but with newly generated values from analysis
