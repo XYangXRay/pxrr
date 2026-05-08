@@ -14,8 +14,8 @@ Contributors
 
 * A. Palomino (core architecture, coding, testing)
 * X. Yang (algorithm design, packaging, implementation, UI design)
-* B. Ocko (scientific guidance, validation)
-* C. Shen (testing, bug reports)
+* B. Ocko (scientific guidance, module design, validation)
+* C. Shen (scientific guidance, module design, validation)
 * P. Shafer (code review, CI integration)
 
 Community

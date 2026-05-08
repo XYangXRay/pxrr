@@ -4,9 +4,8 @@ Created on Tue Oct 28 16:39:16 2025
 
 @author: shenc
 
-example routine for P08 data (2D GIXS image (angular rebinned from detector image))
-- a series of 1D GIXOS linecuts needs to be extracted and this is executed during data loading
-according to the datatype lable in the yaml file
+example routine for OPLS data (a series of 1D GIXOS linecuts)
+
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,11 +13,10 @@ from scipy.constants import pi
 from pseudo_xrr.eCWM import *
 from pseudo_xrr.data_io import *
 from pseudo_xrr.GIXOS import *
-from pyinstrument import Profiler
+
 
 #%% directly load data from meta and GIXOS will be automatically extracted:
-# alternatively, load_data, geometrical correction, extract_1dGIXOS, and provide metadata into this field
-GIXOSdata, GIXOSbkg = load_gixos_from_meta('./example/testing_data/gixos-process_config_p08test.yaml') 
+GIXOSdata, GIXOSbkg = load_gixos_from_meta('./gixos-process_config_1d.yaml') 
 
 #%% info
 # from here all meta has entered GIXOSdata and GIXOSbkg in ["metadata"] field
@@ -27,14 +25,14 @@ GIXOSdata, GIXOSbkg = load_gixos_from_meta('./example/testing_data/gixos-process
 # binning in tt
 GIXOSdata= binning_GIXOS_tt(GIXOSdata)
 GIXOSbkg= binning_GIXOS_tt(GIXOSbkg)
-#% remove negative 2theta
+# remove negative 2theta
 GIXOSdata= remove_negative_2theta(GIXOSdata)
 GIXOSbkg= remove_negative_2theta(GIXOSbkg)
-#% 2theta to q
+# 2theta to q
 GIXOSdata_q = GIXOS_th2q(GIXOSdata)
 GIXOSbkg_q = GIXOS_th2q(GIXOSbkg)
 # background subtraction
-GIXOS_ana = GIXOS_background_corr(GIXOSdata_q, GIXOSbkg_q, bulkbkg_mode = 2, bulkbkg_offset_lb=0.9, plot = True)
+GIXOS_ana = GIXOS_background_corr(GIXOSdata_q, GIXOSbkg_q, bulkbkg_mode = 0, bulkbkg_const_mode= 1, bulkbkg_const_qz_lb= 0.7, plot = True)
 
 #%% export corrected GIXOS as h5 file. 
 # This stores all the info + data and can be loaded back to continue
@@ -49,10 +47,10 @@ GIXOS_back = load_gixos_nxs(outgixosfile)
 # from here on the operation will directly add results into the original dictionary variable (shared memory)
 
 #%% qxy dependence
-_, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], fit_kappa = True)
+_, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], row_window=3, fit_kappa = True)
 
 #%% processing pseudo
-_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=True, use_approx=False)
+_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=False, use_approx=False)
 
 #%% ---- export configuration ----
 # this gives back the exact yaml file structure but with newly generated values from analysis
@@ -61,31 +59,21 @@ configfilename = make_filename(GIXOS_ana["metadata"], suffix="cfg.yaml")
 save_metadata_yaml(GIXOS_ana["metadata"], configfilename)
 
 #%% ------export orso -----------------
-# at P08 we can fetch metadata for proposal and instrument from these files
-jsonfilename = "U:/p08/2026/data/11024557/beamtime-metadata-11024557.json"
-fiofilename = "U:/p08/2026/data/11024557/raw/dppc_22degc_00015.fio"
 
 # pseudoreflectivity
 _ = export_orso(
     GIXOS_ana,
-    which="refl",
-    json_path=jsonfilename,
-    fio_path=fiofilename,
+    which="refl"
 )
 
 # structure factor
 _ = export_orso(
     GIXOS_ana,
-    which="SF",
-    json_path=jsonfilename,
-    fio_path=fiofilename,
+    which="SF"
 )
 
 # I0 R* (background subtracted GIXOS)
 _ = export_orso(
     GIXOS_ana,
-    which="GIXOS",
-    json_path=jsonfilename,
-    fio_path=fiofilename,
+    which="GIXOS"
 )
-
