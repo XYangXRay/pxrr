@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxrr"
-dynamic = ["version"]
+dynamic = "0.2.0"
 description = "Package for pseudo X-ray reflectivity and GIXOS data analysis"
-readme = "README.md"
+readme = "README.rst"
 authors = [{ name = "AUTHORS.rst" }]
 license = { file = "LICENSE" }
 classifiers = [
