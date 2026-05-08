@@ -79,6 +79,18 @@ Quick Start
 Examples
 --------
 
+Download example folder::
+	
+	git clone --filter=blob:none --no-checkout -b p08-dev https://github.com/XYangXRay/pxrr.git
+	
+	cd pxrr
+	
+	git sparse-checkout init --cone
+	
+	git sparse-checkout set pseudo_xrr/examples
+	
+	git checkout
+
 Two example scripts are included demonstrating typical workflows:
 
 NSLS-II / OPLS (1D GIXOS input)
@@ -86,7 +98,11 @@ NSLS-II / OPLS (1D GIXOS input)
 
 Script::
 
-    OPLS_test_pXRR.py
+    example/opls_1d/pXRR_example_1dGIXOS_OPLS.py
+	
+Jupyter-notebook::
+	
+	example/opls_1d/pXRR_example_1dGIXOS_OPLS.ipynb
 
 This example demonstrates:
 
@@ -94,9 +110,18 @@ This example demonstrates:
 - background correction
 - pseudo-XRR calculation
 
+test data:
+
+- DSPC data from OPLS: example/testing_data/opls_DSPC_data/
+- CaCl2 data from OPLS: example/testing_data/opls_CaCl2_data/
+
 Run::
 
-    python OPLS_test_pXRR.py
+    in spyder run pXRR_example_1dGIXOS_OPLS.py
+	
+Jupyter-notebook::
+	
+	pXRR_example_1dGIXOS_OPLS.ipynb
 
 
 PETRA III / P08 (2D GIXS input)
@@ -104,7 +129,7 @@ PETRA III / P08 (2D GIXS input)
 
 Script::
 
-    p08_test_pXRR.py
+    example/p08_2d/pXRR_example_2dGIXS_p08.py
 
 This example demonstrates:
 
@@ -113,9 +138,13 @@ This example demonstrates:
 - applying geometrical correction
 - performing pseudo-XRR analysis
 
+test data:
+
+- DPPC data from p08: example/testing_data/p08_DPPC_data/
+
 Run::
 
-    python p08_test_pXRR.py
+    in spyder run pXRR_example_2dGIXS_p08.py
 
 
 Metadata
@@ -127,6 +156,8 @@ Both examples require a YAML metadata file describing:
 - scan numbers
 - file paths
 - processing parameters
+
+YAML file stored in the same folder with the scripts
 
 
 Notes
