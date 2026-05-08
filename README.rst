@@ -2,105 +2,179 @@
 Pseudo XRR
 ==========
 
-.. image:: https://github.com/XYangXRay/pxrr/actions/workflows/testing.yml/badge.svg
-   :target: https://github.com/XYangXRay/pxrr/actions/workflows/testing.yml
+# pxrr
 
-.. image:: https://img.shields.io/pypi/v/pxrr.svg
-   :target: https://pypi.python.org/pypi/pxrr
+Pseudo-XRR / GIXOS analysis tools for processing grazing-incidence X-ray scattering data and exporting ORSO-compatible results.
 
-Python package for pseudo X-ray reflectivity
+This package provides utilities for:
 
-* Free software: 3-clause BSD license
+* loading and processing GIXS / GIXOS data
+* applying geometrical and background corrections
+* extracting 1D cuts from 2D detector data
+* computing pseudo-reflectivity (pXRR)
+* exporting results in ORSO-compatible formats
 
-Installation
-------------
+---
 
-To install the `pxrr` package in a local development environment, follow these steps:
+## Installation
 
-1. Clone the repository:
+Install from GitHub::
 
-.. code-block:: bash
+```
+pip install "git+https://github.com/XYangXRay/pxrr.git"
+```
 
-    git clone https://github.com/XYangXRay/pxrr.git
-    cd pxrr
+Install a specific version::
 
-2. Create the pixi environments (default and 'dev'):
+```
+pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
+```
 
-.. code-block:: bash
+Recommended: virtual environment::
 
-    pixi install --all
+```
+python -m venv pxrr-env
+source pxrr-env/bin/activate   # Linux
+pxrr-env\Scripts\activate      # Windows
 
-3. That's all!
+pip install --upgrade pip
+pip install "git+https://github.com/XYangXRay/pxrr.git"
+```
 
-Features
---------
+---
 
-* TODO
+## Dependencies
 
-Quick Start (Notebook Flow)
----------------------------
+Core dependencies:
 
-Minimal processing sequence (mirrors ``pxrr_step_example``)::
+* numpy
+* scipy
+* matplotlib
+* pandas
+* h5py
+* ruamel.yaml
+* joblib
+* orsopy
+* xray-general-io
 
-    from pxrr.data_io import load_inputs, binning_GIXOS_data, remove_negative_2theta, real_space_2theta, save_pseudo_reflectivity
-    from pxrr.plots import GIXOS_data_plot_prep, GIXOS_data_plot, R_data_plot, R_pseudo_data_plot
-    from pxrr.slit import rect_slit_function, conversion_to_reflectivity
-    from pxrr.dependency import dependency_real_space_2theta, create_dependency_models
+Optional:
 
-    metadata_file = "./testing_data/gixos_metadata.yaml"
+* p08-general (for PETRA III / P08 workflows)
 
-    # Load raw data + metadata
-    importGIXOSdata, importbkg, metadata = load_inputs(metadata_file)
+Install with optional support::
 
-    # Re-bin & trim negative 2θ
-    importGIXOSdata, importbkg = binning_GIXOS_data(importGIXOSdata, importbkg)
-    importGIXOSdata, importbkg, tt_step = remove_negative_2theta(importGIXOSdata, importbkg)
+```
+pip install "pxrr[p08] @ git+https://github.com/XYangXRay/pxrr.git"
+```
 
-    # Geometry (single qxy0 workflow)
-    metadata = real_space_2theta(metadata)
+---
 
-    # Prepare GIXOS signal
-    GIXOS, DSbetaHW = GIXOS_data_plot_prep(importGIXOSdata, importbkg, metadata, tt_step)
-    GIXOS_data_plot(GIXOS, metadata)
+## Quick Start
 
-    # Fresnel + transmission + DS terms
-    GIXOS = GIXOS_RF_and_SF(GIXOS, metadata, DSbetaHW)
+.. code-block:: python
 
-    # Slit + reflectivity conversion
-    xrr_config = rect_slit_function(GIXOS, metadata)
-    GIXOS = conversion_to_reflectivity(GIXOS, xrr_config)
+```
+from pseudo_xrr.data_io import load_metadata, load_gixos_from_meta
+from pseudo_xrr.GIXOS import GIXOS_th2q
 
-    # Plots
-    R_data_plot(GIXOS, metadata, xrr_config)                 # R
-    R_pseudo_data_plot(GIXOS, metadata, xrr_config)          # (R/R_F)/scale
+meta = load_metadata("metadata.yaml")
+data, bkg = load_gixos_from_meta("metadata.yaml")
 
-    # Save pseudo reflectivity (qz ref dR dqz)
-    outfile = save_pseudo_reflectivity(GIXOS, metadata)
-    print("Saved:", outfile)
+data_q = GIXOS_th2q(data)
+```
 
-Multi‑curve pseudo reflectivity (different scalings + offsets)::
+---
 
-    R_pseudo_data_plot(
-        GIXOS, metadata, xrr_config,
-        rf_scalings=[metadata['RFscaling'], metadata['RFscaling']*2, metadata['RFscaling']*5],
-        offsets=[0, 1, 2]   # multiply curves by 10^offset (visual separation)
-    )
+## Examples
 
-Dependency (qz-selected modeling)::
+Two example scripts are included:
 
-    metadata = dependency_real_space_2theta(metadata)   # multi-qxy geometry
-    model, assume_model, CWM_model = create_dependency_models(GIXOS, metadata, DSbetaHW)
-    dependency_plot(GIXOS, metadata, model, assume_model, CWM_model)
+NSLS-II / OPLS (1D GIXOS)
 
-Outputs
--------
-* Reflectivity: ``*_R_PYTHON_TEST.dat``
-* DS/(R/RF): ``*_DS2RRF_PYTHON_TEST.dat``
-* Structure factor: ``*_SF_PYTHON_TEST.dat``
-* Pseudo XRR (portable): ``<sample>_pseudo_qx.txt`` (qz ref dR dqz)
+```
 
-Tips
-----
-* Override Fresnel scaling in plots: ``R_data_plot(..., rf_scaling=value)``
-* Provide multiple scalings + offsets for publication layering.
-* Set ``rf_scalings=None`` to default to ``metadata['RFscaling']``.
+Script::
+
+    OPLS_test_pXRR.py
+
+Run::
+
+    python OPLS_test_pXRR.py
+
+PETRA III / P08 (2D GIXS)
+```
+
+Script::
+
+```
+p08_test_pXRR.py
+```
+
+Run::
+
+```
+python p08_test_pXRR.py
+```
+
+---
+
+## Metadata
+
+Both examples require a YAML file (in their folders) defining:
+
+* instrument parameters
+* scan numbers
+* data paths
+
+---
+
+## Notes
+
+* ORSO export requires `xray_general_io`
+* P08 workflows require `p08_general` (optional)
+* Keep compatible versions across:
+
+  * pxrr
+  * xray_general_io
+  * p08_general
+
+---
+
+## HPC usage
+
+Avoid environment conflicts::
+
+```
+unset PYTHONPATH
+unset PYTHONHOME
+```
+
+---
+
+## Development
+
+Install editable mode::
+
+```
+pip install -e .
+```
+
+---
+
+## Install a tagged version
+
+```
+pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
+```
+
+---
+
+## License
+
+Add your license here.
+
+---
+
+## Authors
+
+Developed for GIXS / GIXOS analysis workflows at synchrotron beamlines.
