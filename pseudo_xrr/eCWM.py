@@ -944,7 +944,7 @@ def calc_eCWM_roughness_factor_SP(
                 # Lower
                 lower, _ = dblquad(
                     lambda phi, beta: diff_psi(beta, phi),
-                    beta_i - np.radians(_scalar_value(delta_beta_HW[idx]),
+                    beta_i - np.radians(_scalar_value(delta_beta_HW[idx])),
                     beta_i - np.radians(_scalar_value(delta_beta_array_for_qxy_slit_min[idx, phi_idx])),
                     lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx])),
                     lambda _: np.radians(_scalar_value(phi_array_for_qxy_slit_min[idx, phi_idx + 1])),
