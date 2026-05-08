@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxrr"
-dynamic = "0.2.0"
+version = "0.2.0"
 description = "Package for pseudo X-ray reflectivity and GIXOS data analysis"
 readme = "README.rst"
 authors = [{ name = "AUTHORS.rst" }]
