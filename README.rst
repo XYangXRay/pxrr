@@ -207,8 +207,9 @@ License
 Add your license here.
 
 
-Authors
+Acknowledgement and citations
 -------
 
-Developed for GIXS / GIXOS analysis workflows at synchrotron beamlines .
+This GIXOS-pseudo XRR processing library is jointly developed by Brookhaven National Laboratory and Deutsches Elektronen-Synchrotron DESY, and Dr. Benjamin Ocko, Mr. Alex Palomino, Dr. Padraic Shafer, Dr. Chen Shen, Dr. Xiaogang Yang are acknowledged.
 
+Please cite the two papers: (1) https://doi.org/10.1107/s1600576724002887; (2) https://doi.org/10.1103/znt1-fmx6
