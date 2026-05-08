@@ -897,6 +897,7 @@ def calc_eCWM_roughness_factor_SP(
 
         # start evaluating contribution for each beta
         def process_idx_rad(idx):
+            print(beta[idx])
             beta_i = np.radians(float(beta[idx])) # the diffPsi_red expects beta and phi in radian
             alpha_i_deg = float(alpha[idx]) # the function expects alpha in degree
             # reduced differential roughness factor function
