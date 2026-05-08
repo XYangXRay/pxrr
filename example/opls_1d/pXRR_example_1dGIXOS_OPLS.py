@@ -50,7 +50,7 @@ GIXOS_back = load_gixos_nxs(outgixosfile)
 _, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], row_window=3, fit_kappa = True)
 
 #%% processing pseudo
-_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=False, use_approx=False)
+_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=False, use_approx=True)
 
 #%% ---- export configuration ----
 # this gives back the exact yaml file structure but with newly generated values from analysis

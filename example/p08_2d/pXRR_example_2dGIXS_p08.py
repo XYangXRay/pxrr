@@ -51,7 +51,7 @@ GIXOS_back = load_gixos_nxs(outgixosfile)
 _, qxy_dependence_fit = GIXOS_qxy_dependence(GIXOS_ana, GIXOS_ana['metadata']['dependency']['qz_selected'], fit_kappa = True)
 
 #%% processing pseudo
-_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=True, use_approx=False)
+_ = GIXOS2R(GIXOS_ana, transmission_corr = True, footprint_effect=True, use_approx=True)
 
 #%% ---- export configuration ----
 # this gives back the exact yaml file structure but with newly generated values from analysis
@@ -61,8 +61,10 @@ save_metadata_yaml(GIXOS_ana["metadata"], configfilename)
 
 #%% ------export orso -----------------
 # at P08 we can fetch metadata for proposal and instrument from these files
-jsonfilename = "U:/p08/2026/data/11024557/beamtime-metadata-11024557.json"
-fiofilename = "U:/p08/2026/data/11024557/raw/dppc_22degc_00015.fio"
+jsonfilename = "/asap3/petra3/gpfs/p08/2026/data/11024557/beamtime-metadata-11024557.json"
+sample      = GIXOS_ana['metadata']["measurements"]["sample"][4:]
+scan      = GIXOS_ana['metadata']["measurements"]["scan"]
+fiofilename = f"/asap3/petra3/gpfs/p08/2026/data/11024557/raw/{sample}_{scan:05d}.fio"
 
 # pseudoreflectivity
 _ = export_orso(

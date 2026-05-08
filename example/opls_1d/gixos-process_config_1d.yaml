@@ -5,8 +5,8 @@ datatype: "1d gixos"
 geometrical_correction: True
 
 paths:
-  gixs_path: "U:/external/2024/data/50000395/processed/gixos_processed_opls/"         
-  path_out: "D:/github/XYangXRay-pxrr/example/testing_data/output/12id/"
+  gixs_path: "/asap3/petra3/gpfs/external/2024/data/50000395/processed/gixos_processed_opls/"         
+  path_out: "../output/opls_1d/"
 
 measurements:
     sample:      "instrument"
