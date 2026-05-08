@@ -907,9 +907,6 @@ def calc_eCWM_roughness_factor_SP(
             beta_i = np.radians(_scalar_value(beta[idx])) # the diffPsi_red expects beta and phi in radian
             alpha_i_deg = _scalar_value(alpha[idx]) # the function expects alpha in degree
             # reduced differential roughness factor function
-            #diff_psi = lambda beta_rad, phi_rad: eCWM_diffPsi_red(
-            #    beta_rad, phi_rad, kbT_gamma, wave_number, alpha_i_deg, Lk, amin, use_approx = use_approx
-            #)
             def diff_psi(beta_rad, phi_rad):
                 return _scalar_value(
                     eCWM_diffPsi_red(
