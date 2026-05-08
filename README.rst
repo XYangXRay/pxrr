@@ -82,13 +82,9 @@ Examples
 Download example folder::
 	
 	git clone --filter=blob:none --no-checkout -b p08-dev https://github.com/XYangXRay/pxrr.git
-	
 	cd pxrr
-	
 	git sparse-checkout init --cone
-	
-	git sparse-checkout set pseudo_xrr/examples
-	
+	git sparse-checkout set example
 	git checkout
 
 Two example scripts are included demonstrating typical workflows:
