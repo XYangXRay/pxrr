@@ -25,7 +25,7 @@ Install from GitHub::
 
 Install a specific branch::
 
-    pip install "git+https://github.com/XYangXRay/pxrr.git@p08-dev"
+    pip install "git+https://github.com/XYangXRay/pxrr.git@ocko"
 
 
 Recommended: virtual environment::
@@ -81,10 +81,10 @@ Examples
 
 Download example folder::
 	
-	git clone --filter=blob:none --no-checkout -b p08-dev https://github.com/XYangXRay/pxrr.git
+	git clone --filter=blob:none --no-checkout -b ocko https://github.com/XYangXRay/pxrr.git
 	cd pxrr
 	git sparse-checkout init --cone
-	git sparse-checkout set pseudo_xrr/examples
+	git sparse-checkout set example
 	git checkout
 
 Two example scripts are included demonstrating typical workflows:
