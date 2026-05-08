@@ -61,10 +61,10 @@ save_metadata_yaml(GIXOS_ana["metadata"], configfilename)
 
 #%% ------export orso -----------------
 # at P08 we can fetch metadata for proposal and instrument from these files
-jsonfilename = "/asap3/petra3/gpfs/p08/2026/data/11024557/beamtime-metadata-11024557.json"
+jsonfilename = "../testing_data/p08_DPPC_data/beamtime-metadata-11024557.json"
 sample      = GIXOS_ana['metadata']["measurements"]["sample"][4:]
 scan      = GIXOS_ana['metadata']["measurements"]["scan"]
-fiofilename = f"/asap3/petra3/gpfs/p08/2026/data/11024557/raw/{sample}_{scan:05d}.fio"
+fiofilename = f"../testing_data/p08_DPPC_data/raw/{sample}_{scan:05d}.fio"
 
 # pseudoreflectivity
 _ = export_orso(
