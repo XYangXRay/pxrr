@@ -22,6 +22,13 @@ everything related to the extended Capillary Wave Model and scattering optics:
 # -------------------------------------------------------------
 ETA_MAX_DEFAULT = 1.96
 
+def _scalar_at(arr, idx):
+    """
+    make sure the shape is correct for float(), 
+    needed in numpy>=2.4.* since numpy starts to raise an error
+    """
+    return float(np.asarray(arr).ravel()[idx])
+    
 def _calc_eta_from_qz(qz, tension, temp):
     """
     Calculate the capillary-wave exponent eta from Qz.
@@ -897,9 +904,8 @@ def calc_eCWM_roughness_factor_SP(
 
         # start evaluating contribution for each beta
         def process_idx_rad(idx):
-            print(beta[idx])
-            beta_i = np.radians(float(beta[idx])) # the diffPsi_red expects beta and phi in radian
-            alpha_i_deg = float(alpha[idx]) # the function expects alpha in degree
+            beta_i = np.radians(_scalar_at(beta, idx)) # the diffPsi_red expects beta and phi in radian
+            alpha_i_deg = _scalar_at(alpha, idx) # the function expects alpha in degree
             # reduced differential roughness factor function
             diff_psi = lambda beta_rad, phi_rad: eCWM_diffPsi_red(
                 beta_rad, phi_rad, kbT_gamma, wave_number, alpha_i_deg, Lk, amin, use_approx = use_approx
