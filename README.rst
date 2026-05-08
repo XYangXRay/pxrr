@@ -23,9 +23,9 @@ Install from GitHub::
 
     pip install "git+https://github.com/XYangXRay/pxrr.git"
 
-Install a specific version::
+Install a specific branch::
 
-    pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
+    pip install "git+https://github.com/XYangXRay/pxrr.git@p08-dev"
 
 
 Recommended: virtual environment::
