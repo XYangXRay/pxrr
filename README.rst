@@ -2,179 +2,182 @@
 Pseudo XRR
 ==========
 
-# pxrr
+pxrr
+====
 
 Pseudo-XRR / GIXOS analysis tools for processing grazing-incidence X-ray scattering data and exporting ORSO-compatible results.
 
 This package provides utilities for:
 
-* loading and processing GIXS / GIXOS data
-* applying geometrical and background corrections
-* extracting 1D cuts from 2D detector data
-* computing pseudo-reflectivity (pXRR)
-* exporting results in ORSO-compatible formats
+- loading and processing GIXS / GIXOS data
+- applying geometrical and background corrections
+- extracting 1D cuts from 2D detector data
+- computing pseudo-reflectivity (pXRR)
+- exporting results in ORSO-compatible formats
 
----
 
-## Installation
+Installation
+------------
 
 Install from GitHub::
 
-```
-pip install "git+https://github.com/XYangXRay/pxrr.git"
-```
+    pip install "git+https://github.com/XYangXRay/pxrr.git"
 
 Install a specific version::
 
-```
-pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
-```
+    pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
+
 
 Recommended: virtual environment::
 
-```
-python -m venv pxrr-env
-source pxrr-env/bin/activate   # Linux
-pxrr-env\Scripts\activate      # Windows
+    python -m venv pxrr-env
+    source pxrr-env/bin/activate   # Linux
+    pxrr-env\Scripts\activate      # Windows
 
-pip install --upgrade pip
-pip install "git+https://github.com/XYangXRay/pxrr.git"
-```
+    pip install --upgrade pip
+    pip install "git+https://github.com/XYangXRay/pxrr.git"
 
----
 
-## Dependencies
+Dependencies
+------------
 
 Core dependencies:
 
-* numpy
-* scipy
-* matplotlib
-* pandas
-* h5py
-* ruamel.yaml
-* joblib
-* orsopy
-* xray-general-io
+- numpy
+- scipy
+- matplotlib
+- pandas
+- h5py
+- ruamel.yaml
+- joblib
+- orsopy
+- xray-general-io
 
 Optional:
 
-* p08-general (for PETRA III / P08 workflows)
+- p08-general (for PETRA III / P08 workflows)
 
 Install with optional support::
 
-```
-pip install "pxrr[p08] @ git+https://github.com/XYangXRay/pxrr.git"
-```
+    pip install "pxrr[p08] @ git+https://github.com/XYangXRay/pxrr.git"
 
----
 
-## Quick Start
+Quick Start
+-----------
 
 .. code-block:: python
 
-```
-from pseudo_xrr.data_io import load_metadata, load_gixos_from_meta
-from pseudo_xrr.GIXOS import GIXOS_th2q
+    from pseudo_xrr.data_io import load_metadata, load_gixos_from_meta
+    from pseudo_xrr.GIXOS import GIXOS_th2q
 
-meta = load_metadata("metadata.yaml")
-data, bkg = load_gixos_from_meta("metadata.yaml")
+    meta = load_metadata("metadata.yaml")
+    data, bkg = load_gixos_from_meta("metadata.yaml")
 
-data_q = GIXOS_th2q(data)
-```
+    data_q = GIXOS_th2q(data)
 
----
 
-## Examples
+Examples
+--------
 
-Two example scripts are included:
+Two example scripts are included demonstrating typical workflows:
 
-NSLS-II / OPLS (1D GIXOS)
-
-```
+NSLS-II / OPLS (1D GIXOS input)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Script::
 
     OPLS_test_pXRR.py
 
+This example demonstrates:
+
+- loading 1D GIXOS cuts
+- background correction
+- pseudo-XRR calculation
+
 Run::
 
     python OPLS_test_pXRR.py
 
-PETRA III / P08 (2D GIXS)
-```
+
+PETRA III / P08 (2D GIXS input)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Script::
 
-```
-p08_test_pXRR.py
-```
+    p08_test_pXRR.py
+
+This example demonstrates:
+
+- loading 2D GIXS detector data
+- extracting 1D GIXOS cuts
+- applying geometrical correction
+- performing pseudo-XRR analysis
 
 Run::
 
-```
-python p08_test_pXRR.py
-```
+    python p08_test_pXRR.py
 
----
 
-## Metadata
+Metadata
+--------
 
-Both examples require a YAML file (in their folders) defining:
+Both examples require a YAML metadata file describing:
 
-* instrument parameters
-* scan numbers
-* data paths
+- instrument parameters (energy, geometry, etc.)
+- scan numbers
+- file paths
+- processing parameters
 
----
 
-## Notes
+Notes
+-----
 
-* ORSO export requires `xray_general_io`
-* P08 workflows require `p08_general` (optional)
-* Keep compatible versions across:
+- ORSO-compatible export requires ``orsopy``
+- P08-specific workflows require ``p08_general`` (optional dependency)
+- Use compatible versions of ``orsopy`` across:
+  - pxrr
+  - xray_general_io
+  - p08_general
 
-  * pxrr
-  * xray_general_io
-  * p08_general
 
----
+HPC / Cluster usage
+-------------------
 
-## HPC usage
+To avoid conflicts with system Python::
 
-Avoid environment conflicts::
+    unset PYTHONPATH
+    unset PYTHONHOME
 
-```
-unset PYTHONPATH
-unset PYTHONHOME
-```
 
----
+Development
+-----------
 
-## Development
+Install in editable mode::
 
-Install editable mode::
+    pip install -e .
 
-```
-pip install -e .
-```
 
----
+Versioning
+----------
 
-## Install a tagged version
+Versions are derived from Git tags::
 
-```
-pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
-```
+    git tag v1.0.0
+    git push origin v1.0.0
 
----
+Install a tagged version::
 
-## License
+    pip install "git+https://github.com/XYangXRay/pxrr.git@v1.0.0"
+
+
+License
+-------
 
 Add your license here.
 
----
 
-## Authors
+Authors
+-------
 
-Developed for GIXS / GIXOS analysis workflows at synchrotron beamlines.
+Developed for GIXS / GIXOS analysis workflows at synchrotron beamlines .
+
