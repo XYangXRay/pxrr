@@ -1,0 +1,46 @@
+facility: NSLS-II/12ID
+datatype: 1d gixos
+geometrical_correction: true
+paths:
+  gixs_path: /Users/xiaogangyang/data/opls-pxrr/gixos2/
+  path_out: ./testing_data/output/opls_full/
+measurements:
+  sample: instrument
+  scan: [51218, 51220, 51222, 51224, 51226, 51228, 51230]
+  bkgsample: instrument
+  bkgscan: [51219, 51221, 51223, 51225, 51227, 51229, 51231]
+  flux: 3.6500842324892884
+  cttime_sample: 1
+  cttime_bkg: 1
+instrument:
+  energy: 14400.000419124199
+  alpha: 0.07278125000000002
+  Ddet: 680.0
+  pixel: 0.17200000000000001
+  HWtth: 0.007246230899785206
+  footprint: 10
+  wavelength: 0.8613888638174363
+qxy0: [0.04061061973771442, 0.06068655778731455, 0.08068277849996167, 0.10063108665896585, 0.15063627219109216, 0.2006556085674744, 0.31897543594928734]
+DSpxHW: 3.5
+PseudoR:
+  qxy0_select_idx: [0, 1]
+  resolution_mode: 1
+  resolution_HW: [0.33, 0.5]
+  energy: 14400.000419124199
+  Ddet: 1039.9
+  bkg_mode: 0
+  bkg_off: 1.0
+sample_params:
+  Qc: 0.0218
+  tension: 0.028
+  temperature: 293
+  kappa: 0.23854104059513218
+  amin: 5
+  rho_b: 9.454599394374042e-06
+  kappa_err: 0.28190349945642756
+  kappa_fit_success: true
+dependency:
+  qz_selected: [0.1, 0.15, 0.35]
+  kappa_deviation: 3
+tth: [0.3189937652812475, 0.476689706436506, 0.6337603671093655, 0.7904558600737999, 1.1832575771153722, 1.5761843629328316, 2.5057276574070286]
+I0: 3.6500842324892884
