@@ -290,4 +290,5 @@ def make_filename(metadata, suffix=None):
         scan_part = f"{int(np.min(scan_arr)):05d}_{int(np.max(scan_arr)):05d}"
 
     filename = f"{sample}_{scan_part}_{suffix}"
+    os.makedirs(path_out, exist_ok=True)
     return os.path.join(path_out, filename)
