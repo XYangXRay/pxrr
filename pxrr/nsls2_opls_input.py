@@ -367,3 +367,108 @@ class NSLS2OPLSInput:
         _save_metadata_yaml(meta, yaml_path)
         print(f"config written: {yaml_path}")
         return yaml_path
+
+
+def process_opls(
+    start_scan,
+    n_scans,
+    *,
+    path,
+    sdd=680 / 1000,
+    pxsize=172e-6,
+    bad_pixel=(100, 269),
+    roi_y=195 - 111,
+    roi_x=41 + 9,
+    roi_dy=3,
+    yaml_dir="./opls_full",
+    gixs_path=None,
+    path_out=None,
+    tension=0.072,
+    kappa=5,
+    plot=True,
+    save_gixos=True,
+    **yaml_overrides,
+):
+    """Run OPLS preprocessing for a contiguous block of scans.
+
+    Pairs the scans as alternating sample/chamber-bkg (even index = sample,
+    odd index = background), loads them, optionally plots, saves the 1D
+    GIXOS .txt files, and writes a YAML config compatible with
+    ``load_gixos_from_meta``.
+
+    Parameters
+    ----------
+    start_scan : int
+        First scan ID.
+    n_scans : int
+        Total number of scans (sample + bkg combined). Must be even.
+    path : str
+        Working directory (passed to ``NSLS2OPLSInput``); also default for
+        ``gixs_path`` / ``path_out``.
+    sdd, pxsize, bad_pixel, roi_y, roi_x, roi_dy
+        Detector geometry / ROI parameters.
+    yaml_dir : str
+        Directory for the generated YAML config.
+    gixs_path, path_out : str, optional
+        Overrides for the corresponding YAML fields.
+    tension : float
+        Surface tension [N/m], written into ``sample_params.tension``.
+    kappa : float
+        Bending modulus [kbT], written into ``sample_params.kappa``.
+    plot : bool
+        Show / save the qz overview plot.
+    save_gixos : bool
+        Write per-scan 1D GIXOS .txt files.
+    **yaml_overrides
+        Additional nested dict overrides forwarded to
+        ``NSLS2OPLSInput.save_metadata_yaml``.
+
+    Returns
+    -------
+    opls : NSLS2OPLSInput
+        The loaded preprocessor instance.
+    metadata_file : str
+        Path to the written YAML config.
+    """
+    if n_scans % 2 != 0:
+        raise ValueError("n_scans must be even (alternating sample / bkg pairs)")
+
+    ids = np.arange(int(start_scan), int(start_scan) + int(n_scans))
+    sample_scans = ids[0::2].tolist()
+    bkg_scans = ids[1::2].tolist()
+
+    opls = NSLS2OPLSInput(
+        path=path,
+        sdd=sdd,
+        pxsize=pxsize,
+        bad_pixel=bad_pixel,
+        roi_y=roi_y,
+        roi_x=roi_x,
+        roi_dy=roi_dy,
+    )
+    opls.load_data(sample_id_set=ids)
+    if plot:
+        opls.plot()
+    if save_gixos:
+        opls.save_gixos_1d()
+
+    if gixs_path is None:
+        gixs_path = os.path.join(path, "gixos2") + os.sep
+    if path_out is None:
+        path_out = os.path.join("./testing_data/output/opls_full") + os.sep
+
+    sp_override = yaml_overrides.pop("sample_params", {}) or {}
+    sp_override.setdefault("tension", float(tension))
+    sp_override.setdefault("kappa", float(kappa))
+
+    yaml_path = os.path.join(yaml_dir, f"gixos-process_config_1d_{int(ids[0])}.yaml")
+    metadata_file = opls.save_metadata_yaml(
+        yaml_path=yaml_path,
+        sample_scans=sample_scans,
+        bkg_scans=bkg_scans,
+        gixs_path=gixs_path,
+        path_out=path_out,
+        sample_params=sp_override,
+        **yaml_overrides,
+    )
+    return opls, metadata_file
