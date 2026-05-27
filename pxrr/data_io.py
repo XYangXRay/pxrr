@@ -123,7 +123,22 @@ def load_gixos_from_meta(yaml_path: str):
             # build one prefix per scan id:
             # <sample>-id<id>
             sample_prefix_list = [f"{sample}-id{int(scan_id)}" for scan_id in scan]
-            bkg_prefix_list = [f"{bkgsample}-id{int(scan_id)}" for scan_id in bkgscan]
+            bkg_prefix_list = []
+            for scan_id in bkgscan:
+                sid = int(scan_id)
+                preferred = f"{bkgsample}-id{sid}"
+                fallback = f"{sample}-id{sid}"
+
+                preferred_file = f"{path}{preferred}.txt"
+                fallback_file = f"{path}{fallback}.txt"
+
+                if os.path.exists(preferred_file):
+                    bkg_prefix_list.append(preferred)
+                elif os.path.exists(fallback_file):
+                    bkg_prefix_list.append(fallback)
+                else:
+                    # keep preferred name so downstream error message reflects metadata expectation
+                    bkg_prefix_list.append(preferred)
 
             print("load 1d gixos cuts from NSLS-II/12ID")
 

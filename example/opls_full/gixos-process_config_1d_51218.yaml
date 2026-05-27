@@ -6,10 +6,10 @@ paths:
   path_out: ./testing_data/output/opls_full/
 measurements:
   sample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos
-  scan: [51218, 51220, 51222, 51224, 51226, 51228, 51230]
-  bkgsample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos
-  bkgscan: [51219, 51221, 51223, 51225, 51227, 51229, 51231]
-  flux: 3.6500842324892884
+  scan: [51218]
+  bkgsample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos_bkg
+  bkgscan: [51219]
+  flux: 3.6478902618090507
   cttime_sample: 1
   cttime_bkg: 1
 instrument:
@@ -19,10 +19,10 @@ instrument:
   pixel: 0.17200000000000001
   HWtth: 0.007246230899785206
   footprint: 10
-qxy0: [0.04061061973771442, 0.06068655778731455, 0.08068277849996167, 0.10063108665896585, 0.15063627219109216, 0.2006556085674744, 0.31897543594928734]
+qxy0: [0.04061061973771442]
 DSpxHW: 3.5
 PseudoR:
-  qxy0_select_idx: [0, 1]
+  qxy0_select_idx: [0]
   resolution_mode: 1
   resolution_HW: [0.33, 0.5]
   energy: 14400.000419124199

@@ -350,7 +350,7 @@ class NSLS2OPLSInput:
             else:
                 sample_name = "instrument"
         if bkgsample_name is None:
-            bkgsample_name = sample_name
+            bkgsample_name = f"{sample_name}_bkg"
 
         sample_name = self._sanitize_sample_name(sample_name)
         bkgsample_name = self._sanitize_sample_name(bkgsample_name)
