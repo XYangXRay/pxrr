@@ -381,6 +381,126 @@ def save_metadata_yaml(metadata_dict, filename):
         yaml.dump(clean_dict, f)
 
 
+def update_metadata(
+    yaml_path,
+    updates=None,
+    out_path=None,
+    create_missing=False,
+    **natural_updates,
+):
+    """Update values in an existing metadata YAML file.
+
+    Parameters
+    ----------
+    yaml_path : str or Path
+        Path to the existing metadata YAML file.
+    updates : dict, optional
+        Updates to apply. Supports two forms:
+        1) nested dictionaries, e.g. ``{"sample_params": {"kappa": 5}}``
+        2) flat key paths, e.g. ``{"sample_params.kappa": 5}``
+    out_path : str or Path, optional
+        Output path for the updated YAML. If ``None``, overwrite ``yaml_path``.
+    create_missing : bool, optional
+        If ``False`` (default), only existing keys can be updated and missing
+        keys raise ``KeyError``. If ``True``, missing keys are created.
+    **natural_updates
+        Additional key-value updates using natural key paths. Use ``__`` as a
+        separator for keyword-safe nested keys. Example:
+        ``sample_params__kappa=5`` is treated as ``sample_params.kappa``.
+
+    Returns
+    -------
+    str
+        Path to the written YAML file.
+    """
+    if updates is None:
+        updates = {}
+    if not isinstance(updates, dict):
+        raise TypeError("updates must be a dictionary if provided")
+
+    yaml_path = str(yaml_path)
+    if out_path is None:
+        out_path = yaml_path
+    out_path = str(out_path)
+
+    if not os.path.exists(yaml_path):
+        raise FileNotFoundError(f"metadata file not found: {yaml_path}")
+
+    yaml = YAML(typ="safe")
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        meta = yaml.load(f)
+
+    if not isinstance(meta, dict):
+        raise ValueError("metadata file must contain a top-level mapping")
+
+    def _update(dst, src, path_keys):
+        for key, value in src.items():
+            key_path = path_keys + [str(key)]
+            dotted = ".".join(key_path)
+
+            if isinstance(value, dict):
+                if key not in dst:
+                    if create_missing:
+                        dst[key] = {}
+                    else:
+                        raise KeyError(f"Missing key in metadata: {dotted}")
+                elif not isinstance(dst[key], dict):
+                    raise TypeError(f"Cannot update nested key under non-dict: {dotted}")
+                _update(dst[key], value, key_path)
+            else:
+                if key not in dst and not create_missing:
+                    raise KeyError(f"Missing key in metadata: {dotted}")
+                dst[key] = value
+
+    def _set_by_path(dst, dotted_key, value):
+        if not isinstance(dotted_key, str) or dotted_key.strip() == "":
+            raise ValueError("Update keys must be non-empty strings")
+
+        parts = [p for p in dotted_key.split(".") if p]
+        if not parts:
+            raise ValueError(f"Invalid update key: {dotted_key}")
+
+        cur = dst
+        for part in parts[:-1]:
+            if part not in cur:
+                if create_missing:
+                    cur[part] = {}
+                else:
+                    raise KeyError(f"Missing key in metadata: {'.'.join(parts)}")
+            elif not isinstance(cur[part], dict):
+                raise TypeError(f"Cannot update nested key under non-dict: {'.'.join(parts)}")
+            cur = cur[part]
+
+        leaf = parts[-1]
+        if leaf not in cur and not create_missing:
+            raise KeyError(f"Missing key in metadata: {'.'.join(parts)}")
+        cur[leaf] = value
+
+    # 1) apply nested-dict updates from `updates`
+    nested_updates = {}
+    flat_updates = {}
+    for k, v in updates.items():
+        if isinstance(k, str) and "." in k:
+            flat_updates[k] = v
+        else:
+            nested_updates[k] = v
+
+    if nested_updates:
+        _update(meta, nested_updates, [])
+
+    # 2) apply dotted-path updates from `updates`
+    for k, v in flat_updates.items():
+        _set_by_path(meta, k, v)
+
+    # 3) apply keyword natural updates (double underscore as separator)
+    for k, v in natural_updates.items():
+        _set_by_path(meta, k.replace("__", "."), v)
+
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
+    save_metadata_yaml(meta, out_path)
+    return out_path
+
+
 # ----------------------------------------------------------------------------
 # export to Orso format
 # ----------------------------------------------------------------------------

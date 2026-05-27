@@ -371,9 +371,9 @@ class NSLS2OPLSInput:
 
 def process_opls(
     start_scan,
-    n_scans,
-    *,
+    n_scan,
     path,
+    *,
     sdd=680 / 1000,
     pxsize=172e-6,
     bad_pixel=(100, 269),
@@ -400,7 +400,7 @@ def process_opls(
     ----------
     start_scan : int
         First scan ID.
-    n_scans : int
+    n_scan : int
         Total number of scans (sample + bkg combined). Must be even.
     path : str
         Working directory (passed to ``NSLS2OPLSInput``); also default for
@@ -430,10 +430,10 @@ def process_opls(
     metadata_file : str
         Path to the written YAML config.
     """
-    if n_scans % 2 != 0:
-        raise ValueError("n_scans must be even (alternating sample / bkg pairs)")
+    if n_scan % 2 != 0:
+        raise ValueError("n_scan must be even (alternating sample / bkg pairs)")
 
-    ids = np.arange(int(start_scan), int(start_scan) + int(n_scans))
+    ids = np.arange(int(start_scan), int(start_scan) + int(n_scan))
     sample_scans = ids[0::2].tolist()
     bkg_scans = ids[1::2].tolist()
 
