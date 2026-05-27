@@ -5,9 +5,9 @@ paths:
   gixs_path: /Users/xiaogangyang/data/opls-pxrr/gixos2/
   path_out: ./testing_data/output/opls_full/
 measurements:
-  sample: instrument
+  sample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos
   scan: [51218, 51220, 51222, 51224, 51226, 51228, 51230]
-  bkgsample: instrument
+  bkgsample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos
   bkgscan: [51219, 51221, 51223, 51225, 51227, 51229, 51231]
   flux: 3.6500842324892884
   cttime_sample: 1
@@ -33,7 +33,7 @@ sample_params:
   Qc: 0.0218
   tension: 0.072
   temperature: 293
-  kappa: 6
+  kappa: 5.0
   amin: 5
 dependency:
   qz_selected: [0.1, 0.15, 0.35]

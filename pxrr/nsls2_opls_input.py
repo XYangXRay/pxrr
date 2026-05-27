@@ -35,6 +35,54 @@ class NSLS2OPLSInput:
         self.monitor_lst = []
         self.expo_time_lst = []
         self.sample_id_set = None
+        self.scan_sample_name_map = {}
+        self._db = None
+
+    @staticmethod
+    def _sanitize_sample_name(name):
+        """Return a filesystem-safe sample label."""
+        name = str(name).strip()
+        if not name:
+            return "instrument"
+        safe = []
+        for ch in name:
+            if ch.isalnum() or ch in ("-", "_"):
+                safe.append(ch)
+            elif ch in (" ", "."):
+                safe.append("_")
+            else:
+                safe.append("_")
+        label = "".join(safe).strip("_")
+        return label or "instrument"
+
+    def _get_sample_name_from_scan_id(self, sample_id, run=None):
+        """Resolve sample_name for a scan_id from tiled metadata, then databroker header."""
+        # 1) tiled metadata (preferred)
+        if run is not None:
+            try:
+                start = run.metadata.get("start", {})
+                name = start.get("sample_name")
+                if name is not None and str(name).strip() != "":
+                    return str(name)
+            except Exception:
+                pass
+
+        # 2) databroker header lookup (same style as legacy notebooks)
+        #    headers = db(...); h.start['sample_name']
+        #    direct scan lookup: db[scan_id].start['sample_name']
+        try:
+            from databroker import Broker
+
+            if self._db is None:
+                self._db = Broker(c)
+            header = self._db[int(sample_id)]
+            name = header.start.get("sample_name")
+            if name is not None and str(name).strip() != "":
+                return str(name)
+        except Exception:
+            pass
+
+        return "instrument"
 
     def search_scans(self, since, plan_name="gid_soller"):
         from tiled.queries import Key
@@ -51,6 +99,7 @@ class NSLS2OPLSInput:
         self.result_lst = []
         self.monitor_lst = []
         self.expo_time_lst = []
+        self.scan_sample_name_map = {}
 
         print(self.sample_id_set)
 
@@ -58,6 +107,7 @@ class NSLS2OPLSInput:
             print(self.roi_y, self.roi_dy)
             sample_id = int(sample_id)
             run = c[sample_id]
+            sample_name = self._get_sample_name_from_scan_id(sample_id, run=run)
             primary_data = run["primary"]["data"]
             h_sample_monitor = np.mean(
                 np.array(primary_data["monitor_3"])
@@ -79,8 +129,10 @@ class NSLS2OPLSInput:
             self.imgs = self.imgs + result["gixos_1d"]
             self.monitor_lst.append(h_sample_monitor)
             self.expo_time_lst.append(h_sample_expo_time)
+            self.scan_sample_name_map[sample_id] = sample_name
             # geometry
             result["height"] = np.mean(np.array(primary_data["geo_sh"]))
+            result["sample_name"] = sample_name
             result["px_beta"] = (
                 np.rad2deg(
                     np.arctan(
@@ -166,7 +218,11 @@ class NSLS2OPLSInput:
             )
             np.savetxt(
                 self.path
-                + "gixos/instrument-id"
+                + "gixos/"
+                + self._sanitize_sample_name(
+                    self.result_lst[idx].get("sample_name", "instrument")
+                )
+                + "-id"
                 + str(self.result_lst[idx]["id"])
                 + ".txt",
                 np.column_stack(
@@ -210,7 +266,11 @@ class NSLS2OPLSInput:
             )
             outpath = (
                 self.path
-                + "gixos2/instrument-id"
+                + "gixos2/"
+                + self._sanitize_sample_name(
+                    self.result_lst[idx].get("sample_name", "instrument")
+                )
+                + "-id"
                 + str(self.result_lst[idx]["id"])
                 + ".txt"
             )
@@ -238,7 +298,7 @@ class NSLS2OPLSInput:
         yaml_path,
         sample_scans,
         bkg_scans,
-        sample_name="instrument",
+        sample_name=None,
         bkgsample_name=None,
         gixs_path=None,
         path_out=None,
@@ -254,8 +314,10 @@ class NSLS2OPLSInput:
         sample_scans, bkg_scans : sequence of int
             Sample scan IDs and matching chamber-background scan IDs.
             Must have the same length; entries pair element-wise.
-        sample_name : str, default "instrument"
+        sample_name : str, optional
             File prefix used by ``save_gixos_1d`` (``<name>-id<scanid>.txt``).
+            If ``None``, infer from tiled ``sample_name`` metadata of
+            ``sample_scans``. If mixed names are found, use the first one.
         bkgsample_name : str, optional
             Defaults to ``sample_name``.
         gixs_path, path_out : str, optional
@@ -277,8 +339,21 @@ class NSLS2OPLSInput:
         bkg_scans = [int(s) for s in bkg_scans]
         if len(sample_scans) != len(bkg_scans):
             raise ValueError("sample_scans and bkg_scans must have equal length")
+        if sample_name is None:
+            inferred = [
+                self.scan_sample_name_map.get(s)
+                for s in sample_scans
+                if self.scan_sample_name_map.get(s)
+            ]
+            if inferred:
+                sample_name = inferred[0]
+            else:
+                sample_name = "instrument"
         if bkgsample_name is None:
             bkgsample_name = sample_name
+
+        sample_name = self._sanitize_sample_name(sample_name)
+        bkgsample_name = self._sanitize_sample_name(bkgsample_name)
 
         # look up per-scan results
         by_id = {int(r["id"]): r for r in self.result_lst}
@@ -383,6 +458,8 @@ def process_opls(
     yaml_dir="./opls_full",
     gixs_path=None,
     path_out=None,
+    sample_name=None,
+    bkgsample_name=None,
     tension=0.072,
     kappa=5,
     plot=True,
@@ -411,6 +488,10 @@ def process_opls(
         Directory for the generated YAML config.
     gixs_path, path_out : str, optional
         Overrides for the corresponding YAML fields.
+    sample_name, bkgsample_name : str, optional
+        Values written to ``metadata['measurements']['sample']`` and
+        ``metadata['measurements']['bkgsample']``. If ``sample_name`` is
+        ``None``, infer from tiled ``sample_name`` by ``scan_id``.
     tension : float
         Surface tension [N/m], written into ``sample_params.tension``.
     kappa : float
@@ -466,6 +547,8 @@ def process_opls(
         yaml_path=yaml_path,
         sample_scans=sample_scans,
         bkg_scans=bkg_scans,
+        sample_name=sample_name,
+        bkgsample_name=bkgsample_name,
         gixs_path=gixs_path,
         path_out=path_out,
         sample_params=sp_override,
