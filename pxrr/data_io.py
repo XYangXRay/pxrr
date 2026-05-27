@@ -407,6 +407,8 @@ def update_metadata(
         Additional key-value updates using natural key paths. Use ``__`` as a
         separator for keyword-safe nested keys. Example:
         ``sample_params__kappa=5`` is treated as ``sample_params.kappa``.
+        For bare keys (e.g. ``kappa=5``), the function auto-resolves to a
+        unique nested match if one exists.
 
     Returns
     -------
@@ -476,6 +478,19 @@ def update_metadata(
             raise KeyError(f"Missing key in metadata: {'.'.join(parts)}")
         cur[leaf] = value
 
+    def _find_key_paths(node, target_key, prefix=None):
+        if prefix is None:
+            prefix = []
+        matches = []
+        if isinstance(node, dict):
+            for k, v in node.items():
+                new_prefix = prefix + [str(k)]
+                if str(k) == target_key:
+                    matches.append(".".join(new_prefix))
+                if isinstance(v, dict):
+                    matches.extend(_find_key_paths(v, target_key, new_prefix))
+        return matches
+
     # 1) apply nested-dict updates from `updates`
     nested_updates = {}
     flat_updates = {}
@@ -494,7 +509,33 @@ def update_metadata(
 
     # 3) apply keyword natural updates (double underscore as separator)
     for k, v in natural_updates.items():
-        _set_by_path(meta, k.replace("__", "."), v)
+        resolved_key = k.replace("__", ".")
+        if "." in resolved_key:
+            _set_by_path(meta, resolved_key, v)
+            continue
+
+        # bare key path: update top-level key if present
+        if resolved_key in meta:
+            _set_by_path(meta, resolved_key, v)
+            continue
+
+        # otherwise try unique nested-key auto-resolution
+        matches = _find_key_paths(meta, resolved_key)
+        if len(matches) == 1:
+            _set_by_path(meta, matches[0], v)
+        elif len(matches) == 0:
+            if create_missing:
+                _set_by_path(meta, resolved_key, v)
+            else:
+                raise KeyError(
+                    f"Missing key in metadata: {resolved_key}. "
+                    f"Use dotted path (e.g. sample_params.{resolved_key}) or set create_missing=True."
+                )
+        else:
+            raise KeyError(
+                f"Ambiguous key '{resolved_key}'. Matches found: {matches}. "
+                "Use an explicit dotted path."
+            )
 
     os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
     save_metadata_yaml(meta, out_path)

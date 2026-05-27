@@ -33,7 +33,7 @@ sample_params:
   Qc: 0.0218
   tension: 0.072
   temperature: 293
-  kappa: 5.0
+  kappa: 6
   amin: 5
 dependency:
   qz_selected: [0.1, 0.15, 0.35]
