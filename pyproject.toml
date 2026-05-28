@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=68", "wheel", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxrr"
-version = "0.1.0"
+version = "0.2.0"
 description = "Package for pseudo X-ray reflectivity and GIXOS data analysis"
 readme = "README.rst"
 authors = [{ name = "AUTHORS.rst" }]
@@ -15,67 +15,33 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = [
     "ipython",
-    "joblib",
-    "matplotlib",
-    "numpy",
-    "pandas",
-    "pyyaml",
-    "scipy",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pandas>=2.0",
+    "h5py>=3.8",
+    "ruamel.yaml>=0.17",
+    "joblib>=1.3",
+    "orsopy>=1.2",
+    "xray-general-io @ git+https://gitlab.desy.de/petra-iii/p08/data-process/xray_general_io.git",
+]
+
+[project.optional-dependencies]
+p08 = [
+    "p08-general @ git+https://gitlab.desy.de/petra-iii/p08/data-process/p08_general.git",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/nsls2/pxrr"
 "Bug Tracker" = "https://github.com/nsls2/pxrr/issues"
 
-[tool.black]
-line-length = 115
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pseudo_xrr*"]
 
-  # The following are specific to Black, you probably don't want those.
-  | blib2to3
-  | tests/data
-)/
-'''
-
-[tool.pixi.project]
-channels = ["conda-forge"]
-platforms = ["linux-64", "osx-arm64", "win-64"]
-
-[tool.pixi.environments]
-default = { solve-group = "default" }
-dev = { features = ["dev"], solve-group = "default" }
-
-# Default environment
-
-[tool.pixi.pypi-dependencies]
-pxrr = { path = ".", editable = true }
-
-[tool.pixi.tasks]
-
-# Dev environment
-
-[tool.pixi.feature.dev.dependencies]
-pre-commit = "*"
-python = "<3.13"
-
-[tool.pixi.feature.dev.tasks]
-lint = "pre-commit run --all-files"
-
-[tool.pixi.dependencies]
-ipython = "*"
-ipykernel = ">=6.30.1,<7"
-pyfai = ">=2025.3.0,<2026"
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
