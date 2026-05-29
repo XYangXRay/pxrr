@@ -2,7 +2,7 @@
 # c = from_profile('opls')
 from tiled.client import from_uri
 cat = from_uri('https://tiled.nsls2.bnl.gov')
-# cat.login()
+#cat.login()
 c = cat['opls']['raw']
 
 
@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from databroker import Broker
 import copy
 
-import pyFAI, pyFAI.detectors, pyFAI.azimuthalIntegrator
+import pyFAI.detectors, pyFAI.azimuthalIntegrator
 
 def testfunction(a,b):
     c = a+b

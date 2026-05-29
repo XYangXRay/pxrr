@@ -83,6 +83,7 @@ target/
 
 # testing data
 examples/test_data/
+example/back_tmp/
 
 # pixi environments
 .pixi
