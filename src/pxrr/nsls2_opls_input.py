@@ -3,9 +3,40 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import subplots
 import os
 import time
+from pathlib import Path
 from PIL import Image
+from ruamel.yaml import YAML
 from pxrr.preprocess import *
 from pxrr.data_io import save_metadata_yaml as _save_metadata_yaml
+
+
+# Packaged default metadata template, reused from the shipped example config.
+DEFAULT_CONFIG_YAML = (
+    Path(__file__).resolve().parents[2]
+    / "example"
+    / "opls_full"
+    / "gixos-process_config_1d.yaml"
+)
+
+
+def _load_base_metadata(metadata_input=None):
+    """Load a base metadata template.
+
+    Parameters
+    ----------
+    metadata_input : str or Path, optional
+        Path to a YAML template. If ``None``, the packaged default
+        (``DEFAULT_CONFIG_YAML``) is used.
+
+    Returns
+    -------
+    dict
+        Parsed metadata dictionary to be used as a base template.
+    """
+    src = metadata_input if metadata_input is not None else DEFAULT_CONFIG_YAML
+    yaml = YAML(typ="safe")
+    with open(src, "r") as f:
+        return yaml.load(f)
 
 
 class NSLS2OPLSInput:
@@ -36,7 +67,6 @@ class NSLS2OPLSInput:
         self.expo_time_lst = []
         self.sample_id_set = None
         self.scan_sample_name_map = {}
-        self._db = None
 
     @staticmethod
     def _sanitize_sample_name(name):
@@ -56,8 +86,8 @@ class NSLS2OPLSInput:
         return label or "instrument"
 
     def _get_sample_name_from_scan_id(self, sample_id, run=None):
-        """Resolve sample_name for a scan_id from tiled metadata, then databroker header."""
-        # 1) tiled metadata (preferred)
+        """Resolve sample_name for a scan_id from tiled metadata."""
+        # 1) tiled metadata from the provided run (preferred)
         if run is not None:
             try:
                 start = run.metadata.get("start", {})
@@ -67,16 +97,10 @@ class NSLS2OPLSInput:
             except Exception:
                 pass
 
-        # 2) databroker header lookup (same style as legacy notebooks)
-        #    headers = db(...); h.start['sample_name']
-        #    direct scan lookup: db[scan_id].start['sample_name']
+        # 2) tiled lookup by scan_id
         try:
-            from databroker import Broker
-
-            if self._db is None:
-                self._db = Broker(c)
-            header = self._db[int(sample_id)]
-            name = header.start.get("sample_name")
+            start = get_run(int(sample_id)).metadata.get("start", {})
+            name = start.get("sample_name")
             if name is not None and str(name).strip() != "":
                 return str(name)
         except Exception:
@@ -90,7 +114,7 @@ class NSLS2OPLSInput:
         for uid, run in results.items():
             start = run.metadata["start"]
             if start.get("time", 0) >= np.datetime64(since).astype("datetime64[s]").astype("float64"):
-                print(start["scan_id"], start["sample_name"])
+                print(f"scan_id = {start['scan_id']}, sample_name = {start['sample_name']}")
 
     def load_data(self, sample_id_set):
         self.sample_id_set = np.asarray(sample_id_set)
@@ -101,12 +125,11 @@ class NSLS2OPLSInput:
         self.expo_time_lst = []
         self.scan_sample_name_map = {}
 
-        print(self.sample_id_set)
+        print(f"loading scans: {self.sample_id_set}")
 
         for sample_id in self.sample_id_set:
-            print(self.roi_y, self.roi_dy)
             sample_id = int(sample_id)
-            run = c[sample_id]
+            run = get_run(sample_id)
             sample_name = self._get_sample_name_from_scan_id(sample_id, run=run)
             primary_data = run["primary"]["data"]
             h_sample_monitor = np.mean(
@@ -115,7 +138,7 @@ class NSLS2OPLSInput:
             h_sample_expo_time = np.sum(
                 np.array(primary_data["expo_time"])
             )
-            print(h_sample_monitor)
+            print(f"scan {sample_id}: monitor_3 average = {h_sample_monitor}")
             result, ai_lst = loadgixos_ai(
                 sample_id,
                 mode="sum",
@@ -152,25 +175,40 @@ class NSLS2OPLSInput:
                 * np.pi
                 / result["wavelength"]
             )
-            print("id = ", result["id"])
-            print("qxy0 = ", result["qxy"])
-            print("sample height = ", result["height"])
+            print(
+                f"scan {result['id']}: qxy0 = {result['qxy']} /A, "
+                f"sample height = {result['height']}"
+            )
             self.result_lst.append(result)
             del result, ai_lst
 
     def plot(self, savefig=True):
         fig, ax = plt.subplots(figsize=[10, 5])
+        xmin, xmax = 0.005, 0.9
+        ymins, ymaxs = [], []
         for idx in range(len(self.imgs)):
-            ax.plot(
-                self.result_lst[idx]["px_qz"],
+            qz = self.result_lst[idx]["px_qz"]
+            intensity = (
                 self.imgs[idx][0]
                 / self.monitor_lst[idx]
-                * np.mean(self.monitor_lst),
+                * np.mean(self.monitor_lst)
+            )
+            ax.plot(
+                qz,
+                intensity,
                 "-",
                 label="%d" % self.result_lst[idx]["id"],
             )
+            # collect positive intensities within the plotted x-range for ylim
+            in_range = (qz >= xmin) & (qz <= xmax) & (intensity > 0)
+            vals = intensity[in_range]
+            if vals.size:
+                ymins.append(np.min(vals))
+                ymaxs.append(np.max(vals))
         ax.set_yscale("log")
-        ax.set_xlim([0.005, 0.9])
+        ax.set_xlim([xmin, xmax])
+        if ymins and ymaxs:
+            ax.set_ylim([0.5 * min(ymins), 2.0 * max(ymaxs)])
         ax.set_ylabel(r"Intensity")
         ax.set_xlabel(r"$q_{z}$ (${\rm \AA}^{-1}$)")
         ax.legend(loc="upper right")
@@ -191,7 +229,7 @@ class NSLS2OPLSInput:
         return fig, ax
 
     def save_gixos_1d(self):
-        print(self.path)
+        print(f"saving 1D GIXOS .txt files under: {self.path}")
         os.makedirs(os.path.join(self.path, "gixos"), exist_ok=True)
         os.makedirs(os.path.join(self.path, "gixos2"), exist_ok=True)
         # Old method
@@ -240,7 +278,6 @@ class NSLS2OPLSInput:
             )
 
         # New method, Pandas compatible for multiplotting
-        print(self.path)
         for idx in range(len(self.imgs)):
             fileheader = (
                 "{0}header\n{0}energy = %.1f eV\n{0}sdd = %f m\n{0}alpha = %f deg\n"
@@ -291,7 +328,7 @@ class NSLS2OPLSInput:
                 comments="",
                 delimiter="\t",
             )
-            print(outpath)
+            print(f"saved GIXOS 1D: {outpath}")
 
     def save_metadata_yaml(
         self,
@@ -303,6 +340,7 @@ class NSLS2OPLSInput:
         gixs_path=None,
         path_out=None,
         qxy0=None,
+        metadata_input=None,
         **overrides,
     ):
         """Write a YAML config compatible with ``load_gixos_from_meta``.
@@ -326,6 +364,11 @@ class NSLS2OPLSInput:
         qxy0 : sequence of float, optional
             Per-scan qxy0 in 1/A. If None, read from ``result_lst`` entries
             matching ``sample_scans``.
+        metadata_input : str, optional
+            Path to a YAML template used as the base config. Scan-specific
+            and computed fields (scans, sample names, energy, alpha, qxy0,
+            paths, ...) are overwritten on top of it. If ``None``, the
+            packaged default (``DEFAULT_CONFIG_YAML``) is used.
         **overrides
             Nested dict overrides (e.g. ``PseudoR={"qxy0_select_idx": [0, 1]}``)
             merged into the generated YAML.
@@ -379,10 +422,10 @@ class NSLS2OPLSInput:
         if path_out is None:
             path_out = os.path.join(self.path, "output") + os.sep
 
-        meta = {
-            "facility": "NSLS-II/12ID",
-            "datatype": "1d gixos",
-            "geometrical_correction": True,
+        # start from a base template (user-provided or packaged default) and
+        # overwrite only the scan-specific / computed fields
+        meta = _load_base_metadata(metadata_input)
+        computed = {
             "paths": {
                 "gixs_path": gixs_path,
                 "path_out": path_out,
@@ -393,8 +436,6 @@ class NSLS2OPLSInput:
                 "bkgsample": bkgsample_name,
                 "bkgscan": bkg_scans,
                 "flux": float(np.mean(self.monitor_lst)) if self.monitor_lst else 1.0,
-                "cttime_sample": 1,
-                "cttime_bkg": 1,
             },
             "instrument": {
                 "energy": energy,
@@ -402,29 +443,11 @@ class NSLS2OPLSInput:
                 "Ddet": self.sdd * 1000.0,
                 "pixel": self.pxsize * 1000.0,
                 "HWtth": HWtth,
-                "footprint": 10,
             },
             "qxy0": qxy0,
-            "DSpxHW": 3.5,
             "PseudoR": {
                 "qxy0_select_idx": [0, 1] if len(qxy0) >= 2 else [0],
-                "resolution_mode": 1,
-                "resolution_HW": [0.33, 0.5],
                 "energy": energy,
-                "Ddet": 1039.9,
-                "bkg_mode": 0,
-                "bkg_off": 1,
-            },
-            "sample_params": {
-                "Qc": 0.0218,
-                "tension": 0.028,
-                "temperature": 293,
-                "kappa": 20,
-                "amin": 5,
-            },
-            "dependency": {
-                "qz_selected": [0.1, 0.15, 0.35],
-                "kappa_deviation": 3,
             },
         }
 
@@ -436,6 +459,7 @@ class NSLS2OPLSInput:
                 else:
                     dst[k] = v
 
+        _merge(meta, computed)
         _merge(meta, overrides)
 
         os.makedirs(os.path.dirname(os.path.abspath(yaml_path)) or ".", exist_ok=True)
@@ -455,7 +479,8 @@ def process_opls(
     roi_y=195 - 111,
     roi_x=41 + 9,
     roi_dy=3,
-    yaml_dir="./opls_full",
+    metadata_input=None,
+    metadata_output=None,
     gixs_path=None,
     path_out=None,
     sample_name=None,
@@ -484,10 +509,19 @@ def process_opls(
         ``gixs_path`` / ``path_out``.
     sdd, pxsize, bad_pixel, roi_y, roi_x, roi_dy
         Detector geometry / ROI parameters.
-    yaml_dir : str
-        Directory for the generated YAML config.
+    metadata_input : str, optional
+        Path to a YAML template used as the base config. If provided it is
+        filled in with the scan-specific / computed values; otherwise the
+        packaged default (``DEFAULT_CONFIG_YAML``) is used.
+    metadata_output : str, optional
+        Output *directory* for the generated YAML config. The filename is
+        always auto-generated as ``gixos-process_config_1d_<first_scan>.yaml``.
+        If ``None``, the data output directory (``path_out``) is used.
+        Parent directories are created if needed.
     gixs_path, path_out : str, optional
-        Overrides for the corresponding YAML fields.
+        Overrides for the corresponding YAML fields. ``path`` is the raw
+        data working directory; ``path_out`` is the processed-output
+        directory (also the default location for ``metadata_output``).
     sample_name, bkgsample_name : str, optional
         Values written to ``metadata['measurements']['sample']`` and
         ``metadata['measurements']['bkgsample']``. If ``sample_name`` is
@@ -542,15 +576,20 @@ def process_opls(
     sp_override.setdefault("tension", float(tension))
     sp_override.setdefault("kappa", float(kappa))
 
-    yaml_path = os.path.join(yaml_dir, f"gixos-process_config_1d_{int(ids[0])}.yaml")
+    # metadata_output is a directory; the filename is always auto-generated
+    metadata_dir = path_out if metadata_output is None else metadata_output
+    metadata_output = os.path.join(
+        metadata_dir, f"gixos-process_config_1d_{int(ids[0])}.yaml"
+    )
     metadata_file = opls.save_metadata_yaml(
-        yaml_path=yaml_path,
+        yaml_path=metadata_output,
         sample_scans=sample_scans,
         bkg_scans=bkg_scans,
         sample_name=sample_name,
         bkgsample_name=bkgsample_name,
         gixs_path=gixs_path,
         path_out=path_out,
+        metadata_input=metadata_input,
         sample_params=sp_override,
         **yaml_overrides,
     )

@@ -771,6 +771,79 @@ def GIXOS_background_corr(
     return correcteddata
        
 
+def GIXOS_correct(
+                    GIXOSdata,
+                    GIXOSbkg,
+                    HWpx_v=5,
+                    bulkbkg_mode=None,
+                    bulkbkg_const_mode=0,
+                    bulkbkg_value=None,
+                    bulkbkg_const_qz_lb=None,
+                    bulkbkg_offset_lb=0.9,
+                    bulkbkg_fit_qz_lb=None,
+                    plot=False,
+                ):
+    """
+    Apply the standard GIXOS corrections and background subtraction in one call.
+
+    This combines the two correction stages that are usually run in sequence:
+
+    1. Angular corrections (applied to both sample and chamber background):
+       - vertical binning in ``tt`` (:func:`binning_GIXOS_tt`)
+       - removal of negative ``2theta`` rows (:func:`remove_negative_2theta`)
+       - conversion of the angular axes to Q (:func:`GIXOS_th2q`)
+
+    2. Background subtraction (:func:`GIXOS_background_corr`):
+       - chamber background subtraction
+       - optional bulk (wide-angle) background subtraction
+
+    Parameters
+    ----------
+    GIXOSdata : dict
+        Sample GIXOS data dictionary (at least ``Intensity``, ``error``,
+        ``tt``, ``tth``, ``HWtth``, ``HWtt``, ``HWpx_h``, ``HWpx_v``,
+        ``metadata``).
+    GIXOSbkg : dict
+        Chamber-background GIXOS data dictionary with the same structure.
+    HWpx_v : float, optional
+        Vertical half-width (in pixels) for the ``tt`` binning. Must be a
+        multiple of ``GIXOSdata['HWpx_v']``. Default is 5.
+    bulkbkg_mode, bulkbkg_const_mode, bulkbkg_value, bulkbkg_const_qz_lb, \
+    bulkbkg_offset_lb, bulkbkg_fit_qz_lb, plot
+        Forwarded to :func:`GIXOS_background_corr`. See that function for
+        the full description of the bulk-background models.
+
+    Returns
+    -------
+    GIXOS_ana : dict
+        Background-corrected GIXOS data dictionary, as returned by
+        :func:`GIXOS_background_corr`.
+    """
+    # 1. angular corrections on sample and background
+    GIXOSdata = binning_GIXOS_tt(GIXOSdata, HWpx_v=HWpx_v)
+    GIXOSbkg = binning_GIXOS_tt(GIXOSbkg, HWpx_v=HWpx_v)
+
+    GIXOSdata = remove_negative_2theta(GIXOSdata)
+    GIXOSbkg = remove_negative_2theta(GIXOSbkg)
+
+    GIXOSdata_q = GIXOS_th2q(GIXOSdata)
+    GIXOSbkg_q = GIXOS_th2q(GIXOSbkg)
+
+    # 2. background subtraction
+    GIXOS_ana = GIXOS_background_corr(
+        GIXOSdata_q,
+        GIXOSbkg_q,
+        bulkbkg_mode=bulkbkg_mode,
+        bulkbkg_const_mode=bulkbkg_const_mode,
+        bulkbkg_value=bulkbkg_value,
+        bulkbkg_const_qz_lb=bulkbkg_const_qz_lb,
+        bulkbkg_offset_lb=bulkbkg_offset_lb,
+        bulkbkg_fit_qz_lb=bulkbkg_fit_qz_lb,
+        plot=plot,
+    )
+    return GIXOS_ana
+
+
 #%% analysis with eCWM
 def GIXOS_qxy_dependence(
     GIXOSdict,
