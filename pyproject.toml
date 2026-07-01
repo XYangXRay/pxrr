@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "pxrr"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Package for pseudo X-ray reflectivity and GIXOS data analysis"
 readme = "README.rst"
 authors = [{ name = "AUTHORS.rst" }]
@@ -27,12 +27,30 @@ dependencies = [
     "ruamel.yaml",
     "h5py",
     "orsopy",
+    "tiled",
 
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/nsls2/pxrr"
 "Bug Tracker" = "https://github.com/nsls2/pxrr/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pxrr"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/pxrr",
+    "tests",
+    "docs",
+    "README.rst",
+    "AUTHORS.rst",
+    "CONTRIBUTING.rst",
+    "LICENSE",
+]
 
 [tool.black]
 line-length = 115
@@ -83,7 +101,7 @@ lint = "pre-commit run --all-files"
 ipython = "*"
 ipykernel = ">=6.30.1,<7"
 pyfai = ">=2025.3.0,<2026"
-databroker = ">=2.0.0b68,<3"
+tiled = ">=0.1.0"
 "ruamel.yaml" = "*"
 h5py = "*"
 orsopy = "*"

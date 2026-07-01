@@ -1,11 +1,30 @@
 from tiled.client import from_profile
+from tiled.queries import Key
 c = from_profile('opls')
 import numpy as np
 import matplotlib.pyplot as plt
-from databroker import Broker
 import copy
 
-import pyFAI, pyFAI.detectors, pyFAI.azimuthalIntegrator
+import pyFAI, pyFAI.detectors
+from pyFAI.integrator.azimuthal import AzimuthalIntegrator
+
+def get_run(scan_id, catalog=None):
+    """Return the bluesky run for an integer scan_id from a tiled catalog.
+
+    tiled Containers are keyed by run uid (string), so an integer scan_id
+    must be resolved via a metadata search. If multiple runs share the same
+    scan_id, the most recent match is returned. Non-integer keys (e.g. a
+    uid string) are looked up directly.
+    """
+    if catalog is None:
+        catalog = c
+    if not isinstance(scan_id, (int, np.integer)):
+        return catalog[scan_id]
+    results = catalog.search(Key("scan_id") == int(scan_id))
+    if len(results) == 0:
+        raise KeyError(f"No run found with scan_id={scan_id}")
+    uid = list(results.keys())[-1]
+    return results[uid]
 
 def testfunction(a,b):
     c = a+b
@@ -14,25 +33,27 @@ def testfunction(a,b):
 def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_dy=2, roi_x = 6.5, pxsize = 172e-6, sdd = 627/1000, image_label = 'pilatus100k_image'):
     # this is to load 1d line cut from a p100k
     # sample dataset
-    db = Broker(c)
-    h_sample = db[sample_id]
-    gixos_3d_sample = list(h_sample.data(image_label)) # these images are 3d data while the 1st dimention is the stack of the 2d tiff, 
+    h_sample = get_run(sample_id)
+    sample_data = h_sample["primary"]["data"]
+    start = h_sample.metadata["start"]
+    gixos_3d_sample = list(np.asarray(sample_data[image_label])) # these images are 3d data while the 1st dimention is the stack of the 2d tiff, 
     if chamber_id:
-        h_chamber = db[chamber_id]
-        gixos_3d_chamber = list(h_chamber.data(image_label))
+        h_chamber = get_run(chamber_id)
+        chamber_data = h_chamber["primary"]["data"]
+        gixos_3d_chamber = list(np.asarray(chamber_data[image_label]))
     else:
         gixos_3d_chamber = [np.zeros((gixos_3d_sample[0].shape[0],gixos_3d_sample[0].shape[1],gixos_3d_sample[0].shape[2]))] *len(gixos_3d_sample)
         print('no chamber data')
 
     # prepare
-    result = {'id': sample_id, 'bkg_id': chamber_id, 'energy': h_sample.start['energy'], 'wavelength': 12.39842 / (h_sample.start['energy']/ 1000), 'alpha': 0, 'beta': 0, 'tth': 0, 'gixos_1d': [], 'gixos_2d':[]}
+    result = {'id': sample_id, 'bkg_id': chamber_id, 'energy': start['energy'], 'wavelength': 12.39842 / (start['energy']/ 1000), 'alpha': 0, 'beta': 0, 'tth': 0, 'gixos_1d': [], 'gixos_2d':[]}
     ai_lst = []
     
     if mode == "single":
         print("process individual frame")
-        result['tth'] = np.array(list(h_sample.data('geo_stth')))
-        result['alpha'] = np.array(list(h_sample.data('geo_alpha')))
-        result['beta'] = np.array(list(h_sample.data('geo_beta')))
+        result['tth'] = np.asarray(sample_data['geo_stth'])
+        result['alpha'] = np.asarray(sample_data['geo_alpha'])
+        result['beta'] = np.asarray(sample_data['geo_beta'])
         #print('energy = ', result['energy'])
         #print('wavelength = ', result['wavelength'])
         #print('alpha = ', result['alpha'])
@@ -50,7 +71,7 @@ def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_
             # set azimuthal integrator
             det = pyFAI.detectors.Detector(pxsize*(roi_dy*2+1), pxsize)
             det.max_shape=(result['gixos_1d'][i].shape[0],result['gixos_1d'][i].shape[1])
-            ai_lst.append(pyFAI.azimuthalIntegrator.AzimuthalIntegrator(dist=sdd, detector=det, wavelength=result['wavelength']/10**10))
+            ai_lst.append(AzimuthalIntegrator(dist=sdd, detector=det, wavelength=result['wavelength']/10**10))
             ai_lst[i].poni1 = 0  # poni1 is along dim1
             ai_lst[i].poni2 = roi_x*pxsize # poni2 is along dim2
             ai_lst[i].rot1 = (result['alpha'][i]+result['beta'][i])/180*np.pi # rot1 around dim1 axis, towards direction of dim2
@@ -58,9 +79,9 @@ def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_
             #print(ai_lst[i])
     elif mode == "sum":
         print("sum frames of each scan")
-        result['tth'] = np.mean(np.array(list(h_sample.data('geo_stth'))))
-        result['alpha'] = np.mean(np.array(list(h_sample.data('geo_alpha'))))
-        result['beta'] = np.mean(np.array(list(h_sample.data('geo_beta'))))
+        result['tth'] = np.mean(np.asarray(sample_data['geo_stth']))
+        result['alpha'] = np.mean(np.asarray(sample_data['geo_alpha']))
+        result['beta'] = np.mean(np.asarray(sample_data['geo_beta']))
         #print(np.array(gixos_3d_sample).shape)
         gixos_3d_sample = np.sum(np.array(gixos_3d_sample), axis = 1)
         #print(np.array(gixos_3d_sample).shape)
@@ -70,7 +91,7 @@ def loadgixos_ai(sample_id, chamber_id=False, mode = "single", roi_y = 100, roi_
         # set azimuthal integrator
         det = pyFAI.detectors.Detector(pxsize*(roi_dy*2+1), pxsize)
         det.max_shape=(result['gixos_1d'][0].shape[0],result['gixos_1d'][0].shape[1])
-        ai_lst.append(pyFAI.azimuthalIntegrator.AzimuthalIntegrator(dist=sdd, detector=det, wavelength=result['wavelength']/10**10))
+        ai_lst.append(AzimuthalIntegrator(dist=sdd, detector=det, wavelength=result['wavelength']/10**10))
         ai_lst[0].poni1 = 0  # poni1 is along dim1
         ai_lst[0].poni2 = roi_x*pxsize # poni2 is along dim2
         ai_lst[0].rot1 = (result['alpha']+result['beta'])/180*np.pi # rot1 around dim1 axis, towards direction of dim2

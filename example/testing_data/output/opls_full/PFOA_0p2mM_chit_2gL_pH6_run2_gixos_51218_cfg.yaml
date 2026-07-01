@@ -1,0 +1,46 @@
+facility: NSLS-II/12ID
+datatype: 1d gixos
+geometrical_correction: true
+paths:
+  gixs_path: /Users/xiaogangyang/data/opls-pxrr/gixos2/
+  path_out: ./testing_data/output/opls_full/
+measurements:
+  sample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos
+  scan: [51218]
+  bkgsample: PFOA_0p2mM_chit_2gL_pH6_run2_gixos_bkg
+  bkgscan: [51219]
+  flux: 3.6478902618090507
+  cttime_sample: 1
+  cttime_bkg: 1
+instrument:
+  energy: 14400.000419124199
+  alpha: 0.07278125000000002
+  Ddet: 680.0
+  pixel: 0.17200000000000001
+  HWtth: 0.007246230899785206
+  footprint: 10
+  wavelength: 0.8613888638174363
+qxy0: [0.04061061973771442]
+DSpxHW: 3.5
+PseudoR:
+  qxy0_select_idx: 0
+  resolution_mode: 1
+  resolution_HW: [0.33, 0.5]
+  energy: 14400.000419124199
+  Ddet: 1039.9
+  bkg_mode: 0
+  bkg_off: 1.0
+sample_params:
+  Qc: 0.0218
+  tension: 0.072
+  temperature: 293
+  kappa: 5.0
+  amin: 5
+  rho_b: 9.454599394374042e-06
+  kappa_err: 0.0
+  kappa_fit_success: true
+dependency:
+  qz_selected: [0.1, 0.15, 0.35]
+  kappa_deviation: 3
+tth: [0.3189937652812475]
+I0: 3.6478902618090507
