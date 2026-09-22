@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from PIL import Image
 from ruamel.yaml import YAML
-from pxrr.preprocess import *
+from pxrr.preprocess import c, get_run, loadgixos_ai
 from pxrr.data_io import save_metadata_yaml as _save_metadata_yaml
 
 

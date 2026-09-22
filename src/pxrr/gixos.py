@@ -1,9 +1,28 @@
 import numpy as np
 import math
-from pxrr.helpers import *
-from pxrr.eCWM import *
-from pxrr.bulkbkg import *
-from pxrr.plots import *
+import numbers
+from scipy.constants import pi, Boltzmann as kb
+from pxrr.helpers import (
+    check_keys_numeric,
+    make_filename,
+    normalize_qxy0_select_idx_inplace,
+)
+from pxrr.eCWM import (
+    GIXOS_dQz,
+    calc_eCWM_red_r,
+    calc_eCWM_roughness_factor_DS,
+    calc_fresnel,
+    calc_tbeta_sqr,
+    t_sqr,
+)
+from pxrr.bulkbkg import bulkbkg_fit, bulkbkg_plot_fit, bulkbkg_predict
+from pxrr.plots import (
+    GIXOS_qxy_dependence_plot,
+    GIXOS_R_plot,
+    GIXOS_raw_plot,
+    GIXOS_RRF_multi_plot,
+    GIXOS_RRF_plot,
+)
 
 '''
 everything directly related to the GIXOS measurement:

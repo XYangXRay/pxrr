@@ -21,8 +21,13 @@ try:
 except Exception:
     P08OrsoIO = None
 
-from pxrr.helpers import *
-from pxrr.gixos import *
+from pxrr.helpers import (
+    make_filename,
+    mean1d_if_within_percent,
+    set_flow_style_lists,
+    yamlify,
+)
+from pxrr.gixos import extract_1dGIXOS, geometrical_corr
 
 '''
 author shenc
