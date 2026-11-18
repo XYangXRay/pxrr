@@ -18,8 +18,8 @@ try:
 except Exception:
     P08OrsoIO = None
 
-from pseudo_xrr.helpers import *
-from pseudo_xrr.GIXOS import *
+from pxrr.helpers import *
+from pxrr.gixos import *
 
 '''
 author shenc
@@ -120,7 +120,22 @@ def load_gixos_from_meta(yaml_path: str):
             # build one prefix per scan id:
             # <sample>-id<id>
             sample_prefix_list = [f"{sample}-id{int(scan_id)}" for scan_id in scan]
-            bkg_prefix_list = [f"{bkgsample}-id{int(scan_id)}" for scan_id in bkgscan]
+            bkg_prefix_list = []
+            for scan_id in bkgscan:
+                sid = int(scan_id)
+                preferred = f"{bkgsample}-id{sid}"
+                fallback = f"{sample}-id{sid}"
+
+                preferred_file = f"{path}{preferred}.txt"
+                fallback_file = f"{path}{fallback}.txt"
+
+                if os.path.exists(preferred_file):
+                    bkg_prefix_list.append(preferred)
+                elif os.path.exists(fallback_file):
+                    bkg_prefix_list.append(fallback)
+                else:
+                    # keep preferred name so downstream error message reflects metadata expectation
+                    bkg_prefix_list.append(preferred)
 
             print("load 1d gixos cuts from NSLS-II/12ID")
 
@@ -376,6 +391,167 @@ def save_metadata_yaml(metadata_dict, filename):
 
     with open(filename, "w", encoding="utf-8") as f:
         yaml.dump(clean_dict, f)
+
+
+def update_metadata(
+    yaml_path,
+    updates=None,
+    out_path=None,
+    create_missing=False,
+    **natural_updates,
+):
+    """Update values in an existing metadata YAML file.
+
+    Parameters
+    ----------
+    yaml_path : str or Path
+        Path to the existing metadata YAML file.
+    updates : dict, optional
+        Updates to apply. Supports two forms:
+        1) nested dictionaries, e.g. ``{"sample_params": {"kappa": 5}}``
+        2) flat key paths, e.g. ``{"sample_params.kappa": 5}``
+    out_path : str or Path, optional
+        Output path for the updated YAML. If ``None``, overwrite ``yaml_path``.
+    create_missing : bool, optional
+        If ``False`` (default), only existing keys can be updated and missing
+        keys raise ``KeyError``. If ``True``, missing keys are created.
+    **natural_updates
+        Additional key-value updates using natural key paths. Use ``__`` as a
+        separator for keyword-safe nested keys. Example:
+        ``sample_params__kappa=5`` is treated as ``sample_params.kappa``.
+        For bare keys (e.g. ``kappa=5``), the function auto-resolves to a
+        unique nested match if one exists.
+
+    Returns
+    -------
+    str
+        Path to the written YAML file.
+    """
+    if updates is None:
+        updates = {}
+    if not isinstance(updates, dict):
+        raise TypeError("updates must be a dictionary if provided")
+
+    yaml_path = str(yaml_path)
+    if out_path is None:
+        out_path = yaml_path
+    out_path = str(out_path)
+
+    if not os.path.exists(yaml_path):
+        raise FileNotFoundError(f"metadata file not found: {yaml_path}")
+
+    yaml = YAML(typ="safe")
+    with open(yaml_path, "r", encoding="utf-8") as f:
+        meta = yaml.load(f)
+
+    if not isinstance(meta, dict):
+        raise ValueError("metadata file must contain a top-level mapping")
+
+    def _update(dst, src, path_keys):
+        for key, value in src.items():
+            key_path = path_keys + [str(key)]
+            dotted = ".".join(key_path)
+
+            if isinstance(value, dict):
+                if key not in dst:
+                    if create_missing:
+                        dst[key] = {}
+                    else:
+                        raise KeyError(f"Missing key in metadata: {dotted}")
+                elif not isinstance(dst[key], dict):
+                    raise TypeError(f"Cannot update nested key under non-dict: {dotted}")
+                _update(dst[key], value, key_path)
+            else:
+                if key not in dst and not create_missing:
+                    raise KeyError(f"Missing key in metadata: {dotted}")
+                dst[key] = value
+
+    def _set_by_path(dst, dotted_key, value):
+        if not isinstance(dotted_key, str) or dotted_key.strip() == "":
+            raise ValueError("Update keys must be non-empty strings")
+
+        parts = [p for p in dotted_key.split(".") if p]
+        if not parts:
+            raise ValueError(f"Invalid update key: {dotted_key}")
+
+        cur = dst
+        for part in parts[:-1]:
+            if part not in cur:
+                if create_missing:
+                    cur[part] = {}
+                else:
+                    raise KeyError(f"Missing key in metadata: {'.'.join(parts)}")
+            elif not isinstance(cur[part], dict):
+                raise TypeError(f"Cannot update nested key under non-dict: {'.'.join(parts)}")
+            cur = cur[part]
+
+        leaf = parts[-1]
+        if leaf not in cur and not create_missing:
+            raise KeyError(f"Missing key in metadata: {'.'.join(parts)}")
+        cur[leaf] = value
+
+    def _find_key_paths(node, target_key, prefix=None):
+        if prefix is None:
+            prefix = []
+        matches = []
+        if isinstance(node, dict):
+            for k, v in node.items():
+                new_prefix = prefix + [str(k)]
+                if str(k) == target_key:
+                    matches.append(".".join(new_prefix))
+                if isinstance(v, dict):
+                    matches.extend(_find_key_paths(v, target_key, new_prefix))
+        return matches
+
+    # 1) apply nested-dict updates from `updates`
+    nested_updates = {}
+    flat_updates = {}
+    for k, v in updates.items():
+        if isinstance(k, str) and "." in k:
+            flat_updates[k] = v
+        else:
+            nested_updates[k] = v
+
+    if nested_updates:
+        _update(meta, nested_updates, [])
+
+    # 2) apply dotted-path updates from `updates`
+    for k, v in flat_updates.items():
+        _set_by_path(meta, k, v)
+
+    # 3) apply keyword natural updates (double underscore as separator)
+    for k, v in natural_updates.items():
+        resolved_key = k.replace("__", ".")
+        if "." in resolved_key:
+            _set_by_path(meta, resolved_key, v)
+            continue
+
+        # bare key path: update top-level key if present
+        if resolved_key in meta:
+            _set_by_path(meta, resolved_key, v)
+            continue
+
+        # otherwise try unique nested-key auto-resolution
+        matches = _find_key_paths(meta, resolved_key)
+        if len(matches) == 1:
+            _set_by_path(meta, matches[0], v)
+        elif len(matches) == 0:
+            if create_missing:
+                _set_by_path(meta, resolved_key, v)
+            else:
+                raise KeyError(
+                    f"Missing key in metadata: {resolved_key}. "
+                    f"Use dotted path (e.g. sample_params.{resolved_key}) or set create_missing=True."
+                )
+        else:
+            raise KeyError(
+                f"Ambiguous key '{resolved_key}'. Matches found: {matches}. "
+                "Use an explicit dotted path."
+            )
+
+    os.makedirs(os.path.dirname(os.path.abspath(out_path)) or ".", exist_ok=True)
+    save_metadata_yaml(meta, out_path)
+    return out_path
 
 
 # ----------------------------------------------------------------------------
@@ -930,7 +1106,7 @@ def build_gixos2r_reduction_metadata(GIXOS, which="refl", qidx=None, selected_po
     call_str = "; ".join(call_parts)
 
     reduction = Reduction(
-        software=[Software(name="pseudo_xrr")],
+        software=[Software(name="pxrr")],
         corrections=corrections,
         call=call_str,
         comment=None,

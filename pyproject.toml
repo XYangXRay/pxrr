@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pxrr"
-version = "0.2.0"
+version = "1.0.0"
 description = "Package for pseudo X-ray reflectivity and GIXOS data analysis"
 readme = "README.rst"
 authors = [{ name = "AUTHORS.rst" }]
@@ -39,8 +39,8 @@ p08 = [
 "Bug Tracker" = "https://github.com/nsls2/pxrr/issues"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["pseudo_xrr*"]
+where = ["src"]
+include = ["pxrr*"]
 
 [tool.setuptools_scm]
 version_scheme = "guess-next-dev"
