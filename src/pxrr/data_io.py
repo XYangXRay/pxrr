@@ -12,10 +12,7 @@ from pathlib import Path
 from orsopy import fileio
 from orsopy.fileio import Reduction, Software, File
 
-try:
-    from pxrr.OrsoIO import OrsoIO
-except Exception:
-    OrsoIO = None
+from xray_general_io.OrsoIO import OrsoIO
 try:
     from p08_general.P08OrsoIO import P08OrsoIO
 except Exception:

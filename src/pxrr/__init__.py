@@ -1,7 +1,9 @@
-from importlib.metadata import PackageNotFoundError, version
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from importlib_metadata import version, PackageNotFoundError
 
 try:
     __version__ = version("pxrr")
-except PackageNotFoundError:  # package is not installed
-    __version__ = "0.0.0+unknown"
-del version, PackageNotFoundError
+except PackageNotFoundError:
+    __version__ = "0+unknown"
