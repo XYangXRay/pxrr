@@ -11,9 +11,9 @@ according to the datatype lable in the yaml file
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import pi
-from pseudo_xrr.eCWM import *
-from pseudo_xrr.data_io import *
-from pseudo_xrr.GIXOS import *
+from pxrr.eCWM import *
+from pxrr.data_io import *
+from pxrr.gixos import *
 
 #%% directly load data from meta and GIXOS will be automatically extracted:
 # alternatively, load_data, geometrical correction, extract_1dGIXOS, and provide metadata into this field

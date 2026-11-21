@@ -10,9 +10,9 @@ example routine for OPLS data (a series of 1D GIXOS linecuts)
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.constants import pi
-from pseudo_xrr.eCWM import *
-from pseudo_xrr.data_io import *
-from pseudo_xrr.GIXOS import *
+from pxrr.eCWM import *
+from pxrr.data_io import *
+from pxrr.gixos import *
 
 
 #%% directly load data from meta and GIXOS will be automatically extracted:
